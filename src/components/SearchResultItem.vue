@@ -46,12 +46,19 @@ const emit = defineEmits<{ highlight: [seed: number, passives: number[]] }>();
         Trade
       </button>
     </div>
-    <div v-for="skill in set.skills" :key="skill.passive" class="mt-2">
-      <span
-        >{{ skillTree.nodes[skill.passive]?.name ?? skill.passive }} ({{
+    <div
+      v-for="(skill, skillIndex) in set.skills"
+      :key="skill.passive"
+      class="mt-2"
+      :class="{
+        'border-t border-neutral-500/30 pt-2': skillIndex > 0,
+      }"
+    >
+      <span>
+        {{ skillTree.nodes[skill.passive]?.name ?? skill.passive }} ({{
           skill.passive
-        }})</span
-      >
+        }})
+      </span>
       <ul class="list-inside list-disc pl-6 font-sans font-bold">
         <li v-for="(roll, statId) in skill.stats" :key="statId">
           {{ translateStat(Number(statId), roll) }}

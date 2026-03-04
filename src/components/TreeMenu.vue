@@ -383,7 +383,7 @@ watch(addStatValue, (v) => {
                 <AppSelect
                   v-model="league"
                   :options="leagues"
-                  class="p-1 px-3 text-sm min-w-0"
+                  class="p-1 px-3 text-sm min-w-[80px] max-w-[100px] truncate"
                 />
                 <AppSelect
                   v-model="platform"
@@ -392,7 +392,7 @@ watch(addStatValue, (v) => {
                     { value: 'Xbox', label: 'Xbox' },
                     { value: 'Playstation', label: 'Playstation' },
                   ]"
-                  class="p-1 px-3 text-sm min-w-0"
+                  class="p-1 px-3 text-sm min-w-[80px]"
                 />
                 <button
                   type="button"
@@ -795,7 +795,18 @@ watch(addStatValue, (v) => {
           </template>
         </template>
 
-        <template v-if="searchResults && showResults">
+        <p
+          v-if="
+            showResults && (!searchResults || searchResults.raw.length === 0)
+          "
+          class="mt-4 text-muted"
+        >
+          {{ ui("noResults", lang) }}
+        </p>
+
+        <template
+          v-if="showResults && searchResults && searchResults.raw.length > 0"
+        >
           <SearchResultsList
             :search-results="searchResults"
             :group-results="groupResults"

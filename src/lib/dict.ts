@@ -303,6 +303,7 @@ export const uiEn = {
   notablesTitle: "Notables",
   smallsTitle: "Smalls",
   selectPlaceholder: "-- Select --",
+  noResults: "No results found",
 } as const;
 
 export const uiRu: Record<keyof typeof uiEn, string> = {
@@ -339,6 +340,7 @@ export const uiRu: Record<keyof typeof uiEn, string> = {
   notablesTitle: "Ноды",
   smallsTitle: "Малые",
   selectPlaceholder: "— Выберите —",
+  noResults: "Совпадений нет",
 };
 
 export function ui(key: keyof typeof uiEn, lang: "ru" | "en"): string {

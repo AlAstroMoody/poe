@@ -557,34 +557,6 @@ function render() {
                 props.selectedConqueror,
               )
             : null;
-        const altLogKey = `${hoveredNode.value.skill}-${props.selectedJewel}-${props.selectedConqueror}-${props.seed}-${currentLang}`;
-        const shouldLogAlt = lastAltLogKey !== altLogKey;
-        if (shouldLogAlt) {
-          lastAltLogKey = altLogKey;
-          const ruNodeForLog =
-            hoveredNode.value.skill != null
-              ? passiveNodeRu[String(hoveredNode.value.skill)]
-              : undefined;
-          // Логи для отладки альтернативных нод и переводов (в т.ч. кистоуны под Glorious Vanity, когда treeEntry может быть null)
-          console.log("[alt-node-debug]", {
-            skill: hoveredNode.value.skill,
-            nodeNameOriginal: hoveredNode.value.name,
-            nodeNameCurrent: nodeName,
-            originalStatsRaw: hoveredNode.value.stats ?? [],
-            originalRuStats: ruNodeForLog?.stats ?? [],
-            isAlternate,
-            isReplaceOnlyJewel,
-            isKeystoneUnderJewel,
-            jewel: props.selectedJewel,
-            conqueror: props.selectedConqueror,
-            seed: props.seed,
-            lang: currentLang,
-            treeEntry: treeEntry ?? null,
-            passiveSkill,
-            ruNode: ruNodeForLog,
-            result,
-          });
-        }
         const altSkill = result?.AlternatePassiveSkill;
         const hasMeaningfulAlt =
           altSkill &&
@@ -635,8 +607,7 @@ function render() {
           (isReplaceOnlyJewel || isKeystoneUnderJewel)
         ) {
           // Калькулятор вернул пустой AlternatePassiveSkill — показываем оригинал. Если есть StatRolls и известны статы ноды (StatsKeys), собираем строки по id с роллами; иначе берём ruNode.
-          const ruNodeFallback =
-            passiveNodeRu[String(hoveredNode.value.skill)];
+          const ruNodeFallback = passiveNodeRu[String(hoveredNode.value.skill)];
           const statsKeys = passiveSkill?.StatsKeys;
           const rolls = result.StatRolls;
           if (
@@ -704,16 +675,6 @@ function render() {
             nodeStats.push({ text, special: true });
           });
         });
-        if (shouldLogAlt) {
-          console.log("[alt-node-display]", {
-            skill: hoveredNode.value.skill,
-            displayName: nodeName,
-            displayStats: nodeStats.map((s) => s.text),
-            altSkill: result?.AlternatePassiveSkill,
-            StatRolls: result?.StatRolls,
-            altAdditions: result?.AlternatePassiveAdditionInformations,
-          });
-        }
       }
 
       // Fallback: оригинальные статы только если не replace-only самоцвет (для него показываем только то, что вернул калькулятор).

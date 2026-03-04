@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import type { SearchResults } from "@/lib/skill_tree";
 import SearchResultItem from "./SearchResultItem.vue";
 
-defineProps<{
+const props = defineProps<{
   searchResults: SearchResults;
   groupResults: boolean;
   jewel: number;
@@ -16,49 +17,73 @@ const emit = defineEmits<{ highlight: [seed: number, passives: number[]] }>();
 const expandedGroup = defineModel<number | "">("expandedGroup", {
   default: "",
 });
+
+const groupedKeys = computed(() =>
+  Object.keys(props.searchResults.grouped)
+    .map((x) => Number(x))
+    .sort((a, b) => a - b)
+    .reverse(),
+);
 </script>
 
 <template>
-  <div v-if="groupResults" class="search-results-grouped">
-    <button
-      v-for="k in Object.keys(searchResults.grouped)
-        .map((x) => Number(x))
-        .sort((a, b) => a - b)
-        .reverse()"
-      :key="k"
-      type="button"
-      class="group-toggle"
-      @click="expandedGroup = expandedGroup === k ? '' : k"
-    >
-      <span
-        >{{ k }} Match{{ k > 1 ? "es" : "" }} [{{
-          searchResults.grouped[k].length
-        }}]</span
-      >
-      <span>{{ expandedGroup === k ? "^" : "V" }}</span>
-    </button>
+  <div
+    v-if="groupResults"
+    class="flex flex-col overflow-auto max-h-[60vh]"
+  >
     <div
-      v-for="k in Object.keys(searchResults.grouped).map((x) => Number(x))"
-      v-show="expandedGroup === k"
-      :key="'list-' + k"
-      class="group-list"
+      v-for="k in groupedKeys"
+      :key="k"
+      class="flex flex-col mb-2 last:mb-0"
     >
-      <SearchResultItem
-        v-for="(set, idx) in searchResults.grouped[k]"
-        :key="idx"
-        :set="set"
-        :jewel="jewel"
-        :conqueror="conqueror"
-        :platform="platform"
-        :league="league"
-        @highlight="(seed, passives) => $emit('highlight', seed, passives)"
-      />
+      <button
+        type="button"
+        class="w-full py-2 px-4 mb-0.5 rounded bg-neutral-500/30 hover:bg-neutral-500/45 flex flex-row justify-between items-center text-inherit cursor-pointer border-none text-base"
+        @click="expandedGroup = expandedGroup === k ? '' : k"
+      >
+        <span>
+          {{ k }} Match{{ k > 1 ? "es" : "" }} [{{
+            searchResults.grouped[k].length
+          }}]
+        </span>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          class="shrink-0 transition-transform duration-200 ease-out"
+          :class="{ 'rotate-180': expandedGroup === k }"
+          aria-hidden
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+      <div
+        v-if="expandedGroup === k"
+        class="mt-1 pl-2 border-l-2 border-neutral-500/40 flex flex-col"
+      >
+        <SearchResultItem
+          v-for="set in searchResults.grouped[k]"
+          :key="set.seed"
+          :set="set"
+          :jewel="jewel"
+          :conqueror="conqueror"
+          :platform="platform"
+          :league="league"
+          @highlight="(seed, passives) => $emit('highlight', seed, passives)"
+        />
+      </div>
     </div>
   </div>
-  <div v-else class="search-results-raw">
+  <div v-else class="flex flex-col overflow-auto max-h-[60vh]">
     <SearchResultItem
-      v-for="(set, idx) in searchResults.raw"
-      :key="idx"
+      v-for="set in searchResults.raw"
+      :key="set.seed"
       :set="set"
       :jewel="jewel"
       :conqueror="conqueror"
@@ -68,34 +93,3 @@ const expandedGroup = defineModel<number | "">("expandedGroup", {
     />
   </div>
 </template>
-
-<style scoped>
-.search-results-grouped,
-.search-results-raw {
-  display: flex;
-  flex-direction: column;
-  overflow: auto;
-  max-height: 60vh;
-}
-.group-toggle {
-  width: 100%;
-  padding: 0.5rem 1rem;
-  margin-bottom: 0.5rem;
-  background: rgba(115, 115, 115, 0.3);
-  border-radius: 4px;
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  color: inherit;
-  cursor: pointer;
-  border: none;
-  font-size: 1rem;
-}
-.group-toggle:hover {
-  background: rgba(115, 115, 115, 0.45);
-}
-.group-list {
-  min-height: 200px;
-  margin-bottom: 0.5rem;
-}
-</style>
