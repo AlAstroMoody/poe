@@ -1,0 +1,184 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "CeltesSP";
+  src: url("/fonts/CeltesSP%202.otf") format("opentype");
+  font-weight: normal;
+  font-style: normal;
+}
+
+@theme {
+  --breakpoint-3xl: 118.75rem; /* 1900px */
+  --breakpoint-4xl: 156.25rem; /* 2500px */
+  --font-celtes: "CeltesSP", serif;
+  --color-bg: #171717;
+  --color-text: #ffffff;
+  --color-heading: #c8c1b4;
+  --color-muted: #a3a3a3;
+  --color-border: #404040;
+  --color-input-bg: #393939;
+  --color-panel: rgba(0, 0, 0, 0.8);
+  --color-button-neutral: rgba(115, 115, 115, 0.2);
+  --color-button-selected: rgba(255, 255, 255, 0.2);
+  --color-hover: rgba(255, 255, 255, 0.05);
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: "Roboto Mono", monospace;
+}
+
+h1 {
+  font-size: 1.375rem;
+  font-weight: 700;
+}
+
+h2 {
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+h3 {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+@media (min-width: 768px) {
+  h1 {
+    font-size: 1.875rem;
+  }
+  h2 {
+    font-size: 1.5rem;
+  }
+  h3 {
+    font-size: 1.25rem;
+  }
+}
+
+.themed {
+  --background: #393939;
+  --list-background: #393939;
+  --item-hover-bg: #c2410c;
+  --item-is-active-bg: #696969;
+  --border-focus-color: #c2410c;
+  --input-color: #ffffff;
+  --border: #696969;
+}
+
+input {
+  background: var(--color-input-bg);
+  height: 42px;
+  padding: 16px;
+  width: 100%;
+  border-radius: 3px;
+}
+
+.selection-button {
+  background: var(--color-button-neutral);
+  padding: 0.5rem 1rem;
+  flex-grow: 1;
+}
+
+.selection-button:first-child {
+  border-radius: 4px 0 0 4px;
+  border-right: 2px solid #000;
+}
+
+.selection-button:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.selected {
+  background: var(--color-button-selected);
+}
+
+.grouped {
+  background: rgba(236, 72, 153, 0.4);
+}
+.grouped:disabled {
+  background: rgba(131, 24, 67, 0.4);
+}
+
+.rainbow {
+  animation: colorRotate 2s linear 0s infinite;
+}
+
+/* Скроллбар в тон темы (track/thumb из @theme) */
+.scrollbar-custom,
+.overflow-auto,
+.overflow-y-auto,
+.overflow-x-auto {
+  scrollbar-color: var(--color-heading) var(--color-input-bg);
+  scrollbar-width: thin;
+}
+.scrollbar-custom::-webkit-scrollbar,
+.overflow-auto::-webkit-scrollbar,
+.overflow-y-auto::-webkit-scrollbar,
+.overflow-x-auto::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scrollbar-custom::-webkit-scrollbar-track,
+.overflow-auto::-webkit-scrollbar-track,
+.overflow-y-auto::-webkit-scrollbar-track,
+.overflow-x-auto::-webkit-scrollbar-track {
+  background: var(--color-input-bg);
+  border-radius: 4px;
+}
+.scrollbar-custom::-webkit-scrollbar-thumb,
+.overflow-auto::-webkit-scrollbar-thumb,
+.overflow-y-auto::-webkit-scrollbar-thumb,
+.overflow-x-auto::-webkit-scrollbar-thumb {
+  background: var(--color-heading);
+  border-radius: 4px;
+}
+.scrollbar-custom::-webkit-scrollbar-thumb:hover,
+.overflow-auto::-webkit-scrollbar-thumb:hover,
+.overflow-y-auto::-webkit-scrollbar-thumb:hover,
+.overflow-x-auto::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted);
+}
+.scrollbar-custom::-webkit-scrollbar-thumb:active,
+.overflow-auto::-webkit-scrollbar-thumb:active,
+.overflow-y-auto::-webkit-scrollbar-thumb:active,
+.overflow-x-auto::-webkit-scrollbar-thumb:active {
+  background: var(--color-text);
+}
+
+/* Menu result lists */
+.overflow-auto.rainbow ul,
+.overflow-auto ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.overflow-auto.rainbow li,
+.overflow-auto li {
+  padding: 0.25rem 0;
+  display: flex;
+  gap: 0.5rem;
+}
+.overflow-auto.rainbow li:hover,
+.overflow-auto li:hover {
+  background: var(--color-hover);
+}
+
+@keyframes colorRotate {
+  from {
+    color: hsl(0, 100%, 50%);
+  }
+  25% {
+    color: hsl(90, 100%, 50%);
+  }
+  50% {
+    color: hsl(180, 100%, 50%);
+  }
+  75% {
+    color: hsl(270, 100%, 50%);
+  }
+  100% {
+    color: hsl(359, 100%, 50%);
+  }
+}
