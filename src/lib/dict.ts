@@ -304,6 +304,7 @@ export const uiEn = {
   smallsTitle: "Smalls",
   selectPlaceholder: "-- Select --",
   noResults: "No results found",
+  customFont: "Custom font",
 } as const;
 
 export const uiRu: Record<keyof typeof uiEn, string> = {
@@ -341,6 +342,7 @@ export const uiRu: Record<keyof typeof uiEn, string> = {
   smallsTitle: "Малые",
   selectPlaceholder: "— Выберите —",
   noResults: "Совпадений нет",
+  customFont: "Кастомный шрифт",
 };
 
 export function ui(key: keyof typeof uiEn, lang: "ru" | "en"): string {

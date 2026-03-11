@@ -57,6 +57,10 @@ h3 {
   }
 }
 
+html.system-font .font-celtes {
+  font-family: inherit;
+}
+
 .themed {
   --background: #393939;
   --list-background: #393939;

@@ -148,17 +148,13 @@ const addStatValue = ref<string | number>("");
 function updateUrl() {
   emit("update-url");
 }
+const seedTouched = ref(false);
 function onSeedInput(v: string | number) {
+  seedTouched.value = true;
   const n = Number(v);
-  if (Number.isNaN(n)) return;
-  emit("update:seed", n);
+  emit("update:seed", Number.isNaN(n) ? 0 : n);
 }
-function clampSeedAndUpdateUrl() {
-  const r = seedRanges.value;
-  if (r) {
-    const val = Math.round(Math.max(r.Min, Math.min(r.Max, props.seed)));
-    if (val !== props.seed) emit("update:seed", val);
-  }
+function onSeedBlur() {
   updateUrl();
 }
 function setMode(m: "seed" | "stats") {
@@ -506,15 +502,18 @@ watch(addStatValue, (v) => {
                   <AppInput
                     :model-value="seed"
                     type="number"
-                    :min="seedRanges?.Min"
-                    :max="seedRanges?.Max"
                     class="w-full"
                     @update:model-value="onSeedInput($event)"
-                    @blur="clampSeedAndUpdateUrl()"
+                    @blur="onSeedBlur()"
                   />
                   <p
                     v-if="jewelFlavorLines.length"
-                    class="mt-3 text-sm leading-relaxed text-neutral-300 italic"
+                    class="mt-3 text-sm leading-relaxed italic"
+                    :class="
+                      seedTouched && !seedValid
+                        ? 'text-red-400'
+                        : 'text-neutral-300'
+                    "
                   >
                     <template v-for="(line, i) in jewelFlavorLines" :key="i">
                       {{ line }}

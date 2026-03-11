@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { RouterLink } from "vue-router";
 import { setLanguage, type Lang } from "@/lib/i18n";
+import { useCustomFont } from "@/composables/useCustomFont";
+import { ui } from "@/lib/dict";
 
 const lang = defineModel<Lang>("lang", { required: true });
+const { customFont, setCustomFont } = useCustomFont();
 
 function setLang(value: Lang) {
   setLanguage(value);
@@ -40,7 +43,7 @@ function setLang(value: Lang) {
     >
       <button
         type="button"
-        class="mr-1 rounded px-2 py-0.5 text-sm transition-opacity"
+        class="mr-1 rounded px-2 py-0.5 text-sm transition-opacity cursor-pointer"
         :class="
           lang === 'en'
             ? 'bg-heading/20 opacity-100'
@@ -52,7 +55,7 @@ function setLang(value: Lang) {
       </button>
       <button
         type="button"
-        class="rounded px-2 py-0.5 text-sm transition-opacity"
+        class="rounded px-2 py-0.5 text-sm transition-opacity cursor-pointer"
         :class="
           lang === 'ru'
             ? 'bg-heading/20 opacity-100'
@@ -61,6 +64,24 @@ function setLang(value: Lang) {
         @click="setLang('ru')"
       >
         RU
+      </button>
+    </div>
+    <div
+      class="mt-1 border-t border-heading/20 pt-2"
+      role="group"
+      :aria-label="ui('customFont', lang)"
+    >
+      <button
+        type="button"
+        class="rounded px-2 py-0.5 text-sm transition-opacity cursor-pointer"
+        :class="
+          customFont
+            ? 'bg-heading/20 opacity-100'
+            : 'opacity-60 hover:opacity-100'
+        "
+        @click="setCustomFont(!customFont)"
+      >
+        {{ ui("customFont", lang) }}
       </button>
     </div>
   </nav>
