@@ -1,2 +1,5 @@
-/** URL WASM и данных (внешний репозиторий timeless-jewels). */
-export const BASE_DATA_URL = "https://vilsol.github.io/timeless-jewels";
+/**
+ * Optional remote data URL (for fallback).
+ * Default is empty: app uses local /calculator.wasm from public.
+ */
+export const BASE_DATA_URL = (import.meta.env.VITE_DATA_URL as string | undefined)?.trim() ?? ''

@@ -1,0 +1,11 @@
+{
+  "source": "grindinggear/skilltree-export",
+  "fetchedFrom": "https://raw.githubusercontent.com/grindinggear/skilltree-export/master",
+  "generatedAt": "2026-03-26T16:56:50.118Z",
+  "files": [
+    "skilltree-export.data.json",
+    "skilltree-export.alternate.json",
+    "skilltree-export.ruthless.json",
+    "skilltree-export.ruthless-alternate.json"
+  ]
+}

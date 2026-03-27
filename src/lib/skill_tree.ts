@@ -40,9 +40,18 @@ export function clearTranslations() {
 
 export const passiveToTree: Record<number, number> = {};
 
-export const loadSkillTree = async () => {
+export type LoadSkillTreeProgress = {
+  phase: "parse" | "nodes" | "sprites" | "translations" | "mapping";
+  percent: number;
+};
+
+export const loadSkillTree = async (
+  onProgress?: (progress: LoadSkillTreeProgress) => void,
+) => {
   const data = getData();
+  onProgress?.({ phase: "parse", percent: 5 });
   skillTree = JSON.parse(data.SkillTree);
+  onProgress?.({ phase: "parse", percent: 15 });
 
   Object.keys(skillTree.groups).forEach((groupId) => {
     const group = skillTree.groups[groupId];
@@ -57,6 +66,7 @@ export const loadSkillTree = async () => {
       drawnNodes[parseInt(nodeId)] = node;
     });
   });
+  onProgress?.({ phase: "nodes", percent: 35 });
 
   Object.keys(skillTree.sprites.keystoneInactive["0.3835"].coords).forEach(
     (c) => (inverseSprites[c] = skillTree.sprites.keystoneInactive["0.3835"]),
@@ -91,14 +101,17 @@ export const loadSkillTree = async () => {
   Object.keys(skillTree.sprites.frame["0.3835"].coords).forEach(
     (c) => (inverseSprites[c] = skillTree.sprites.frame["0.3835"]),
   );
+  onProgress?.({ phase: "sprites", percent: 60 });
 
   await loadTranslations();
   await loadPassiveSkillNameTranslations();
+  onProgress?.({ phase: "translations", percent: 85 });
 
   Object.keys(data.TreeToPassive).forEach((k) => {
     const entry = data.TreeToPassive[parseInt(k)];
     if (entry) passiveToTree[entry.Index] = parseInt(k);
   });
+  onProgress?.({ phase: "mapping", percent: 100 });
 };
 
 async function loadTranslations() {

@@ -62,6 +62,12 @@ export function isWasmReady(): boolean {
   return wasmData !== null && wasmCalculator !== null
 }
 
+export type LoadWasmProgress = {
+  phase: 'download' | 'instantiate' | 'initialize'
+  percent: number
+  source: 'primary' | 'fallback'
+}
+
 function initializeFromGlobal(): void {
   const go = (typeof window !== 'undefined' && (window as unknown as { Go?: unknown }).Go) as
     | (new () => { importObject: WebAssembly.Imports })
@@ -76,36 +82,104 @@ function initializeFromGlobal(): void {
   wasmCalculator = tj.calculator
 }
 
-const PRIMARY_WASM_URL = BASE_DATA_URL.replace(/\/$/, '') + '/calculator.wasm'
+/** Local wasm from public/ (preferred in dev and prod). Respect Vite base path (e.g. /poe/). */
+const LOCAL_WASM_URL = `${import.meta.env.BASE_URL}calculator.wasm`
+const PRIMARY_WASM_URL = LOCAL_WASM_URL
 
-/** Fallback: локальный файл из public/calculator.wasm (если основной источник недоступен). */
-const FALLBACK_WASM_URL = '/calculator.wasm'
+/** Optional remote fallback via VITE_DATA_URL. */
+const FALLBACK_WASM_URL = BASE_DATA_URL ? BASE_DATA_URL.replace(/\/$/, '') + '/calculator.wasm' : ''
 
-async function fetchWasmArrayBuffer(url: string): Promise<ArrayBuffer> {
+async function fetchWasmArrayBuffer(
+  url: string,
+  source: 'primary' | 'fallback',
+  onProgress?: (progress: LoadWasmProgress) => void,
+): Promise<ArrayBuffer> {
   const res = await fetch(url)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  return res.arrayBuffer()
+  const contentLength = Number(res.headers.get('content-length') ?? 0)
+  const reader = res.body?.getReader()
+  if (!reader) return res.arrayBuffer()
+
+  let loaded = 0
+  let unknownPercent = 0
+  const chunks: Uint8Array[] = []
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    if (!value) continue
+    chunks.push(value)
+    loaded += value.length
+    if (onProgress) {
+      if (contentLength > 0) {
+        const percent = Math.min(100, Math.max(0, Math.round((loaded / contentLength) * 100)))
+        onProgress({ phase: 'download', percent, source })
+      } else {
+        unknownPercent = Math.min(90, unknownPercent + 2)
+        onProgress({ phase: 'download', percent: unknownPercent, source })
+      }
+    }
+  }
+  const out = new Uint8Array(loaded)
+  let offset = 0
+  for (const chunk of chunks) {
+    out.set(chunk, offset)
+    offset += chunk.length
+  }
+  return out.buffer
 }
 
-export async function loadWasm(): Promise<void> {
+async function instantiateWasmFromUrl(
+  url: string,
+  source: 'primary' | 'fallback',
+  go: { importObject: WebAssembly.Imports },
+  onProgress?: (progress: LoadWasmProgress) => void,
+): Promise<WebAssembly.Instance> {
+  // Prefer streaming compilation when possible; it can reduce total blocking time.
+  try {
+    const res = await fetch(url)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    onProgress?.({ phase: 'download', percent: 100, source })
+    if (WebAssembly.instantiateStreaming) {
+      onProgress?.({ phase: 'instantiate', percent: 50, source })
+      const streamed = await WebAssembly.instantiateStreaming(res, go.importObject)
+      onProgress?.({ phase: 'instantiate', percent: 100, source })
+      return streamed.instance
+    }
+  } catch {
+    // Fall back to ArrayBuffer path below.
+  }
+
+  const buf = await fetchWasmArrayBuffer(url, source, onProgress)
+  onProgress?.({ phase: 'instantiate', percent: 100, source })
+  const result = await WebAssembly.instantiate(buf, go.importObject)
+  return result.instance
+}
+
+export async function loadWasm(onProgress?: (progress: LoadWasmProgress) => void): Promise<void> {
   const Go = (typeof window !== 'undefined' && (window as unknown as { Go?: new () => { importObject: WebAssembly.Imports; run: (r: unknown) => void } }).Go)
   if (!Go) throw new Error('Load wasm_exec.js before loadWasm()')
 
   const go = new Go()
-  let buf: ArrayBuffer
+  let instance: WebAssembly.Instance
+  let source: 'primary' | 'fallback' = 'primary'
   try {
-    buf = await fetchWasmArrayBuffer(PRIMARY_WASM_URL)
+    instance = await instantiateWasmFromUrl(PRIMARY_WASM_URL, 'primary', go, onProgress)
   } catch {
-    try {
-      buf = await fetchWasmArrayBuffer(FALLBACK_WASM_URL)
-    } catch (fallbackErr) {
+    if (!FALLBACK_WASM_URL) {
       throw new Error(
-        `Failed to load WASM from ${PRIMARY_WASM_URL} and from fallback ${FALLBACK_WASM_URL}. ` +
-          'Put calculator.wasm in public/ for offline/backup.',
+        `Failed to load local WASM from ${PRIMARY_WASM_URL}. Put calculator.wasm in public/.`,
+      )
+    }
+    try {
+      instance = await instantiateWasmFromUrl(FALLBACK_WASM_URL, 'fallback', go, onProgress)
+      source = 'fallback'
+    } catch {
+      throw new Error(
+        `Failed to load WASM from ${PRIMARY_WASM_URL} and fallback ${FALLBACK_WASM_URL}.`,
       )
     }
   }
-  const result = await WebAssembly.instantiate(buf, go.importObject)
-  go.run(result.instance)
+  go.run(instance)
   initializeFromGlobal()
+  if (onProgress) onProgress({ phase: 'initialize', percent: 100, source })
 }

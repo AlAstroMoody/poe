@@ -721,9 +721,6 @@ function render() {
       }
 
       tooltipCache = { key: cacheKey, data: { nodeName, allLines, maxWidth } };
-      if (import.meta.env.DEV) {
-        const displayedTexts = allLines.map((l) => l.text);
-      }
     }
 
     const titleHeight = 55;

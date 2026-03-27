@@ -18,10 +18,11 @@ const bgImage = bgImages[Math.floor(Math.random() * bgImages.length)];
     />
     <div class="relative z-10 px-2 md:px-10 pt-2 md:pt-8 text-gray-50">
       <h1
-        class="home-title font-celtes text-heading text-2xl tracking-wide m-0 mb-5"
+        class="home-title font-celtes text-heading text-2xl tracking-wide m-0"
       >
         Вневременные <br class="block md:hidden" />самоцветы
       </h1>
+      <div class="text-heading font-celtes mb-5">Дерево навыков под 3.28</div>
       <nav class="m-0 flex flex-wrap gap-3">
         <AppButton to="/tree">Калькулятор</AppButton>
         <AppButton to="/instruction">Инструкция</AppButton>

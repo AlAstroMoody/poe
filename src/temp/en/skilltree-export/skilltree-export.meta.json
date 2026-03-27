@@ -1,0 +1,11 @@
+{
+  "source": "https://github.com/grindinggear/skilltree-export",
+  "resolvedRef": "3.28.0",
+  "generatedAt": "2026-03-27T05:29:56.667Z",
+  "files": [
+    "data.json",
+    "alternate.json",
+    "ruthless.json",
+    "ruthless-alternate.json"
+  ]
+}
