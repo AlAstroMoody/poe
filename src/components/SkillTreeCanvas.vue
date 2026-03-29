@@ -17,6 +17,7 @@ import {
   toCanvasCoords,
   translateStat,
   translatePassiveSkillName,
+  displayRollForStatTemplate,
 } from "@/lib/skill_tree";
 import { getData } from "@/services/wasmDataService";
 import { getLanguage } from "@/lib/i18n";
@@ -639,9 +640,13 @@ function render() {
             let text: string;
             // При RU сначала русский шаблон, иначе при смене EN→RU остаётся inverseTranslations (EN)
             if (lang === "ru" && statNamesRuByStringId[stat.ID]) {
+              const displayRoll =
+                roll != null
+                  ? displayRollForStatTemplate(stat.ID, roll)
+                  : undefined;
               text = formatStatTemplate(
                 statNamesRuByStringId[stat.ID],
-                roll != null ? [roll] : [],
+                displayRoll != null ? [displayRoll] : [],
               );
             } else if (tr)
               text =
@@ -677,7 +682,10 @@ function render() {
             statsKeys.forEach((statIndex, i) => {
               const stat = data.GetStatByIndex(statIndex);
               const roll = wasmStatRoll(rolls, i);
-              const rollArr = roll != null ? [roll] : [];
+              const rollArr =
+                roll != null
+                  ? [displayRollForStatTemplate(stat.ID, roll)]
+                  : [];
               let text: string;
               if (currentLang === "ru" && statNamesRuByStringId[stat.ID]) {
                 text = formatStatTemplate(
@@ -711,12 +719,16 @@ function render() {
             const roll = wasmStatRoll(info.StatRolls, i);
             const lang = currentLang;
             let text: string;
-            if (lang === "ru" && statNamesRuByStringId[stat.ID])
+            if (lang === "ru" && statNamesRuByStringId[stat.ID]) {
+              const displayRoll =
+                roll != null
+                  ? displayRollForStatTemplate(stat.ID, roll)
+                  : undefined;
               text = formatStatTemplate(
                 statNamesRuByStringId[stat.ID],
-                roll != null ? [roll] : [],
+                displayRoll != null ? [displayRoll] : [],
               );
-            else if (tr)
+            } else if (tr)
               text =
                 (roll != null ? formatStats(tr, roll) : stat.ID) || stat.ID;
             else if (stat.Text && /\{\d+\}/.test(stat.Text))

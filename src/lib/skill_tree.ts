@@ -115,10 +115,9 @@ export const loadSkillTree = async (
 };
 
 async function loadTranslations() {
-  const lang = getLanguage();
-  // Русский: только словарь по строковому id (statNamesRuByStringId), WASM не используем.
-  if (lang === "ru") return;
   const data = getData();
+  // Нужны всегда: index_handlers (per_minute→per_second и т.д.) совпадают с EN stat_translations;
+  // без этого RU шаблоны получают сырой ролл из WASM (например 60 вместо 1% в секунду).
   loadEnglishTranslations(data);
 }
 
@@ -274,18 +273,19 @@ export const calculateNodePos = (
 export const distance = (p1: Point, p2: Point) =>
   Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2);
 
-export const formatStats = (
+/** Условия + index_handlers как в клиенте PoE (сырой ролл из данных → число в строке тултипа). */
+function applyStatIndexHandlers(
   translation: Translation,
-  stat: number,
-): string | undefined => {
+  rawRoll: number,
+): { finalStat: number; stringTemplate: string } | undefined {
   let idx = -1;
   for (let i = 0; i < translation.list.length; i++) {
     const t = translation.list[i];
     let match = true;
     if (t.conditions?.length) {
       const f = t.conditions[0];
-      if (f.min != null && stat < f.min) match = false;
-      if (f.max != null && stat > f.max) match = false;
+      if (f.min != null && rawRoll < f.min) match = false;
+      if (f.max != null && rawRoll > f.max) match = false;
       if (f.negated) match = !match;
     }
     if (match) {
@@ -295,7 +295,7 @@ export const formatStats = (
   }
   if (idx === -1) return undefined;
   const d = translation.list[idx];
-  let finalStat = stat;
+  let finalStat = rawRoll;
   if (d.index_handlers != null) {
     if (Array.isArray(d.index_handlers) && d.index_handlers[0]) {
       d.index_handlers[0].forEach(
@@ -307,7 +307,29 @@ export const formatStats = (
       );
     }
   }
-  return d.string
+  return { finalStat, stringTemplate: d.string };
+}
+
+/**
+ * Число для подстановки в русский шаблон {0} (тот же pipeline, что у formatStats для EN).
+ * Если нет записи в inverseTranslations — возвращаем rawRoll.
+ */
+export function displayRollForStatTemplate(statId: string, rawRoll: number): number {
+  const tr = inverseTranslations[statId];
+  if (!tr) return rawRoll;
+  const applied = applyStatIndexHandlers(tr, rawRoll);
+  if (!applied) return rawRoll;
+  return parseFloat(applied.finalStat.toFixed(2));
+}
+
+export const formatStats = (
+  translation: Translation,
+  stat: number,
+): string | undefined => {
+  const applied = applyStatIndexHandlers(translation, stat);
+  if (!applied) return undefined;
+  const { finalStat, stringTemplate } = applied;
+  return stringTemplate
     .replace(/\{0(?::(.*?)d(.*?))\}/, "$1" + finalStat + "$2")
     .replace("{0}", parseFloat(finalStat.toFixed(2)).toString());
 };
@@ -430,7 +452,12 @@ export const translateStat = (id: number, roll?: number): string => {
   const lang = getLanguage();
   const template = statNamesRuByStringId[stat.ID];
   if (lang === "ru" && template) {
-    return formatStatTemplate(template, roll != null ? [roll] : []);
+    const displayRoll =
+      roll != null ? displayRollForStatTemplate(stat.ID, roll) : undefined;
+    return formatStatTemplate(
+      template,
+      displayRoll != null ? [displayRoll] : [],
+    );
   }
   const tr = inverseTranslations[stat.ID];
   if (roll != null && tr) return formatStats(tr, roll) ?? stat.ID;
