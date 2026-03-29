@@ -18,7 +18,7 @@ import {
   translateStat,
   translatePassiveSkillName,
 } from "@/lib/skill_tree";
-import { getData, getCalculator } from "@/services/wasmDataService";
+import { getData } from "@/services/wasmDataService";
 import { getLanguage } from "@/lib/i18n";
 import {
   statNamesRuByStringId,
@@ -36,6 +36,13 @@ import {
   ui,
 } from "@/lib/dict";
 import { BASE_DATA_URL } from "@/config";
+import { isTreeDebugEnabled, treeDebugLog } from "@/lib/treeDebug";
+import {
+  alternateLookupTraceForTreeSkill,
+  calculateTimelessForTreeSkill,
+  getPassiveRowByTreeSkill,
+  isPassiveSkillStub,
+} from "@/lib/timelessJewelCalculate";
 
 const props = withDefaults(
   defineProps<{
@@ -88,6 +95,18 @@ function statIdToDisplayFallback(statId: string): string {
   return statId.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+/** Роллы из WASM: map uint32→uint32 может прийти с числовыми или строковыми ключами. */
+function wasmStatRoll(
+  rolls: Record<number, number> | undefined,
+  i: number,
+): number | undefined {
+  if (!rolls) return undefined;
+  const a = rolls[i];
+  if (a !== undefined) return a;
+  const b = rolls[i as unknown as keyof typeof rolls];
+  return typeof b === "number" ? b : undefined;
+}
+
 const jewelRadius = computed(() => baseJewelRadius / scaling.value);
 const startGroups = [427, 320, 226, 227, 323, 422, 329];
 const titleFont = "25px Roboto Mono";
@@ -101,6 +120,11 @@ function resolveSpriteUrl(filename: string): string {
   if (filename.startsWith("http")) return filename;
   const base = BASE_DATA_URL.replace(/\/$/, "");
   return filename.startsWith("/") ? base + filename : base + "/" + filename;
+}
+
+/** Без этого drawImage бросает InvalidStateError для ещё грузящихся или битых картинок. */
+function isImageDrawable(img: HTMLImageElement): boolean {
+  return img.complete && img.naturalWidth > 0;
 }
 
 function drawSprite(
@@ -117,9 +141,14 @@ function drawSprite(
   const spriteSheetUrl = resolveSpriteUrl(sprite.filename);
   const cache = active ? spriteCacheActive : spriteCache;
   if (!(spriteSheetUrl in cache)) {
-    cache[spriteSheetUrl] = new Image();
-    cache[spriteSheetUrl].src = spriteSheetUrl;
+    const img = new Image();
+    img.decoding = "async";
+    cache[spriteSheetUrl] = img;
+    img.src = spriteSheetUrl;
   }
+  const sheet = cache[spriteSheetUrl];
+  if (!isImageDrawable(sheet)) return;
+
   const self = sprite.coords[path];
   if (!self) return;
 
@@ -130,7 +159,7 @@ function drawSprite(
   let finalY = mirrored ? topLeftY - newHeight / 2 : topLeftY;
 
   context.drawImage(
-    cache[spriteSheetUrl],
+    sheet,
     self.x,
     self.y,
     self.w,
@@ -145,7 +174,7 @@ function drawSprite(
     context.translate(topLeftX, topLeftY);
     context.rotate(Math.PI);
     context.drawImage(
-      cache[spriteSheetUrl],
+      sheet,
       self.x,
       self.y,
       self.w,
@@ -290,6 +319,7 @@ function render() {
   }
 
   let newHoverNode: Node | undefined;
+  let newHoverTreeNodeId: string | undefined;
   let hoveredNodeActive = false;
   Object.keys(drawnNodes).forEach((nodeId) => {
     const node = drawnNodes[Number(nodeId)];
@@ -371,6 +401,7 @@ function render() {
 
     if (distance(rotatedPos, mousePos.value) < touchDistance / scaling.value) {
       newHoverNode = node;
+      newHoverTreeNodeId = nodeId;
       hoveredNodeActive = active;
     }
   });
@@ -392,7 +423,6 @@ function render() {
   }
 
   const data = getData();
-  const calculator = getCalculator();
 
   const currentLang = props.lang ?? getLanguage();
   if (lastTooltipLang !== null && lastTooltipLang !== currentLang) {
@@ -427,7 +457,7 @@ function render() {
         | { PassiveSkillGraphID?: number; StatsKeys?: number[]; Name?: string }
         | undefined;
       if (hoveredNode.value.skill != null) {
-        // treeEntry всегда нужен для блока альтернативы (calculator.Calculate)
+        // treeEntry для WASM GetPassiveSkillByIndex и альтернативы (calculateTimelessForTreeSkill)
         treeEntry = data.TreeToPassive[hoveredNode.value.skill];
         if (treeEntry) {
           passiveSkill = data.GetPassiveSkillByIndex(treeEntry.Index);
@@ -549,14 +579,42 @@ function render() {
         props.selectedConqueror
       ) {
         const result =
-          treeEntry != null
-            ? calculator.Calculate(
-                treeEntry.Index,
+          hoveredNode.value.skill != null
+            ? calculateTimelessForTreeSkill(
+                hoveredNode.value.skill,
                 props.seed,
                 props.selectedJewel,
                 props.selectedConqueror,
               )
             : null;
+
+        if (isTreeDebugEnabled() && hoveredNode.value.skill != null) {
+          const dbgKey = `${newHoverTreeNodeId ?? "?"}-${hoveredNode.value.skill}-${props.circledNode}-${props.seed}-${props.selectedJewel}-${props.selectedConqueror}-${currentLang}-${hoveredNodeActive}`;
+          if (dbgKey !== lastAltLogKey) {
+            lastAltLogKey = dbgKey;
+            treeDebugLog("alternate", {
+              treeNodeId: newHoverTreeNodeId,
+              skill: hoveredNode.value.skill,
+              seed: props.seed,
+              jewel: props.selectedJewel,
+              conqueror: props.selectedConqueror,
+              passiveIndex: treeEntry?.Index,
+              trace: alternateLookupTraceForTreeSkill(
+                hoveredNode.value.skill,
+                props.seed,
+                props.selectedJewel,
+                props.selectedConqueror,
+              ),
+              calculate: result
+                ? {
+                    hasAltSkill: !!result.AlternatePassiveSkill,
+                    additions: result.AlternatePassiveAdditionInformations?.length ?? 0,
+                  }
+                : null,
+            });
+          }
+        }
+
         const altSkill = result?.AlternatePassiveSkill;
         const hasMeaningfulAlt =
           altSkill &&
@@ -576,7 +634,7 @@ function render() {
           altSkill.StatsKeys?.forEach((statId, i) => {
             const stat = data.GetStatByIndex(statId);
             const tr = inverseTranslations[stat.ID];
-            const roll = result.StatRolls?.[i];
+            const roll = wasmStatRoll(result.StatRolls, i);
             const lang = currentLang;
             let text: string;
             // При RU сначала русский шаблон, иначе при смене EN→RU остаётся inverseTranslations (EN)
@@ -618,7 +676,7 @@ function render() {
             nodeStats = [];
             statsKeys.forEach((statIndex, i) => {
               const stat = data.GetStatByIndex(statIndex);
-              const roll = (rolls as Record<number, number>)[i];
+              const roll = wasmStatRoll(rolls, i);
               const rollArr = roll != null ? [roll] : [];
               let text: string;
               if (currentLang === "ru" && statNamesRuByStringId[stat.ID]) {
@@ -650,7 +708,7 @@ function render() {
           info.AlternatePassiveAddition?.StatsKeys?.forEach((statId, i) => {
             const stat = data.GetStatByIndex(statId);
             const tr = inverseTranslations[stat.ID];
-            const roll = info.StatRolls?.[i];
+            const roll = wasmStatRoll(info.StatRolls, i);
             const lang = currentLang;
             let text: string;
             if (lang === "ru" && statNamesRuByStringId[stat.ID])
@@ -675,6 +733,19 @@ function render() {
             nodeStats.push({ text, special: true });
           });
         });
+
+        if (
+          hoveredNode.value.skill != null &&
+          isPassiveSkillStub(getPassiveRowByTreeSkill(hoveredNode.value.skill))
+        ) {
+          nodeStats.unshift({
+            text:
+              currentLang === "ru"
+                ? "⚠ Заглушка passive_skills (дерево новее дампа PoB). Совпадение с игрой/vilsol: npm run sync:vilsol-wasm-data && npm run prepare:wasm-data && npm run wasm:build"
+                : "⚠ Stub passive_skills row. Run: npm run sync:vilsol-wasm-data && npm run prepare:wasm-data && npm run wasm:build",
+            special: false,
+          });
+        }
       }
 
       // Fallback: оригинальные статы только если не replace-only самоцвет (для него показываем только то, что вернул калькулятор).

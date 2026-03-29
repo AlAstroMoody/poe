@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { getData, getCalculator } from "@/services/wasmDataService";
+import { getData } from "@/services/wasmDataService";
 import {
   getAffectedNodes,
   getStat,
@@ -13,6 +13,7 @@ import {
   type StatConfig,
   type SearchResults,
 } from "@/lib/skill_tree";
+import { calculateTimelessForTreeSkill } from "@/lib/timelessJewelCalculate";
 import { statValues } from "@/lib/values";
 import type { Lang } from "@/lib/i18n";
 import {
@@ -89,13 +90,12 @@ const seedResults = computed(() => {
     !conquerors.value.some((c) => c.value === props.selectedConqueror)
   )
     return [];
-  const calc = getCalculator();
   return affectedNodes.value
     .filter((n) => n.skill != null && data.TreeToPassive[n.skill])
     .map((n) => ({
       node: n.skill!,
-      result: calc.Calculate(
-        data.TreeToPassive[n.skill!]!.Index,
+      result: calculateTimelessForTreeSkill(
+        n.skill!,
         props.seed,
         props.selectedJewel,
         props.selectedConqueror,

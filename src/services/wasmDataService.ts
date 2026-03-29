@@ -21,11 +21,57 @@ export interface WasmData {
   StatTranslationsRuJSON?: string
   PassiveSkillStatTranslationsRuJSON?: string
   PassiveSkillAuraStatTranslationsRuJSON?: string
-  TreeToPassive: Record<number, { Index: number } | undefined>
+  /** Ключ = PassiveSkillGraphId; значение = строка passive_skills (Index = _key в дампе). */
+  TreeToPassive: Record<
+    number,
+    | {
+        Index: number
+        Id?: string
+        PassiveSkillGraphID?: number
+        Name?: string
+        IsNotable?: boolean
+        IsKeystone?: boolean
+        StatsKeys?: number[]
+      }
+    | undefined
+  >
   TimelessJewels: Record<number, string>
   TimelessJewelConquerors: Record<number, Record<string, { Index: number; Version: number } | undefined> | undefined>
   TimelessJewelSeedRanges: Record<number, { Min: number; Max: number; Special: boolean }>
   PossibleStats: string
+}
+
+/** Снимок цепочки поиска пулов альтернатив (см. calculator/trace.go). */
+export type AlternateLookupTrace = {
+  lookupSummary: string
+  passiveTableIndex: number
+  passiveGraphId: number
+  passiveRowId: string
+  passiveName: string
+  isKeystone: boolean
+  isNotable: boolean
+  isJewelSocket: boolean
+  statIndices: number[]
+  passiveSkillType: string
+  jewelType: number
+  conqueror: string
+  conquerorRow: { index: number; version: number }
+  alternateTreeVersionKey: number
+  alternateTreeVersionId: string
+  treeRules: {
+    notableReplacementSpawnWeight: number
+    minimumAdditions: number
+    maximumAdditions: number
+    areSmallAttributePassiveSkillsReplaced: boolean
+    areSmallNormalPassiveSkillsReplaced: boolean
+  }
+  seedUi: number
+  seedForRng: number
+  validForAlteration: boolean
+  replacePoolCount: number
+  replacePoolSampleIds: string[]
+  additionPoolCount: number
+  additionPoolSampleIds: string[]
 }
 
 export interface WasmCalculator {
@@ -42,6 +88,13 @@ export interface WasmCalculator {
       StatRolls?: Record<number, number>
     }>
   } | undefined
+  /** По каким ключам выбираются пулы замен/дополнений до RNG (для отладки). */
+  AlternateLookupTrace: (
+    passiveID: number,
+    seed: number,
+    timelessJewelType: number,
+    conqueror: string,
+  ) => AlternateLookupTrace
   ReverseSearch: (...args: unknown[]) => Promise<unknown>
 }
 

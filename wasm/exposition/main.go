@@ -10,6 +10,7 @@ func Expose() *crystalline.Exposer {
 	e := crystalline.NewExposer("timeless-jewels")
 
 	e.ExposeFuncOrPanic(calculator.Calculate)
+	e.ExposeFuncOrPanic(calculator.AlternateLookupTrace)
 	e.ExposeFuncOrPanic(calculator.ReverseSearch)
 	e.ExposeFuncOrPanic(data.GetStatByIndex)
 	e.ExposeFuncOrPanic(data.GetAlternatePassiveSkillByIndex)

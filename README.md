@@ -21,6 +21,7 @@ npm run dev
 - `npm run fetch:alternate-names` — подтянуть альтернативные названия нод под самоцветы.
 - `npm run build:dict` — пересобрать словарь переводов статов.
 - `npm run prepare:wasm-data` — обновить `SkillTree.json(.gz)` и провалидировать `data/*.json.gz` для `go:embed`.
+- `npm run sync:vilsol-wasm-data` — скачать расчётные `data/*.json.gz` с [Vilsol/timeless-jewels](https://github.com/Vilsol/timeless-jewels) (как на vilsol.github.io); затем `prepare:wasm-data` и `wasm:build`.
 - `npm run wasm:build` — собрать `public/calculator.wasm` локально из Go-кода в `poe/`.
 - `npm run pipeline:refresh` — регулярный цикл обновления данных и пересборки wasm (без долгого PoEDB шага).
 - `npm run pipeline:refresh:full` — полный цикл, включая `fetch:alternate-names`.
@@ -53,6 +54,8 @@ Fallback на родительский репозиторий удалён: те
 
 ## Источник WASM
 
+Эталонный веб-интерфейс той же логики расчётов (репозиторий [Vilsol/timeless-jewels](https://github.com/Vilsol/timeless-jewels)): **[timeless-jewels на GitHub Pages](https://vilsol.github.io/timeless-jewels)**. По нему удобно сверять сид, тип камня, завоевателя и ноду: если там совпадает с игрой, а у нас нет — искать расхождение в наших данных/сборке WASM; если и там не как в клиенте — ограничение общей реализации или версии дампов.
+
 По умолчанию приложение загружает WASM локально: `/calculator.wasm` (из `public/`).
 
 Опционально можно задать удалённый fallback через env:
@@ -62,3 +65,8 @@ VITE_DATA_URL=https://example.com npm run dev
 ```
 
 Тогда при неудаче локальной загрузки будет попытка взять `${VITE_DATA_URL}/calculator.wasm`.
+
+### Если альтернативы под самоцвет не совпадают с игрой / [vilsol.github.io](https://vilsol.github.io/timeless-jewels)
+
+1. Подтянуть те же `data/*.json.gz`, что в [Vilsol/timeless-jewels](https://github.com/Vilsol/timeless-jewels): `npm run sync:vilsol-wasm-data`, затем `npm run prepare:wasm-data && npm run wasm:build`.
+2. В тултипе строка «⚠ Заглушка passive_skills» значит: для ноды в дереве нет полной строки в экспорте PoB, скрипт добавил заглушку — расчёт может отличаться; обнови дампы (п.1) и при необходимости `npm run fetch:go-pob-data`.
