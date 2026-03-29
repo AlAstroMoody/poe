@@ -1,6 +1,6 @@
 {
   "name": "poe",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "private": true,
   "type": "module",
   "scripts": {
@@ -16,6 +16,7 @@
     "deploy": "npm run version:patch && npm run build && git add dist package.json -f && git commit -m \"Deploy v$(node -p \"require('./package.json').version\")\" && git subtree push --prefix dist origin gh-pages",
     "fetch:skilltree-export": "node scripts/fetch-skilltree-export.mjs",
     "prepare:wasm-data": "node scripts/prepare-wasm-data.mjs",
+    "sync:vilsol-wasm-data": "node scripts/sync-vilsol-wasm-data.mjs",
     "pipeline:refresh": "npm run fetch:go-pob-data && npm run fetch:skilltree-export && npm run fetch:passive-tree-ru && npm run build:dict && npm run prepare:wasm-data && npm run wasm:build && npm run release:check",
     "wasm:build": "bash scripts/build-wasm.sh",
     "fetch:go-pob-data": "node scripts/fetch-go-pob-data.mjs",
