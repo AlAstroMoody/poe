@@ -124,16 +124,13 @@ func init() {
 
 	Stats = unzipJSONTo[[]*Stat](statsGz)
 
-	for _, stat := range Stats {
-		idToStat[stat.Index] = stat
-	}
-
 	SkillTreeData = unzipJSONTo[SkillTree](skillTreeGz)
 
-	var err error
-	SkillTreeJSON, err = json.Marshal(SkillTreeData)
-	if err != nil {
-		panic(err)
+	SkillTreeJSON, _ = json.Marshal(SkillTreeData)
+
+	// Инициализация stat маппинга
+	for _, stat := range Stats {
+		idToStat[stat.Index] = stat
 	}
 
 	StatTranslationsJSON = unzipTo(statTranslationsGz)
@@ -162,7 +159,7 @@ func unzipJSONTo[T any](data []byte) T {
 		var zero T
 		return zero
 	}
-	
+
 	out := new(T)
 	if err := json.Unmarshal(unzipped, &out); err != nil {
 		panic(err)
@@ -176,7 +173,7 @@ func unzipTo(data []byte) []byte {
 	if len(data) == 0 {
 		return []byte{}
 	}
-	
+
 	reader, err := gzip.NewReader(bytes.NewReader(data))
 	if err != nil {
 		panic(err)

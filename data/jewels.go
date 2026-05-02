@@ -8,6 +8,7 @@ const (
 	BrutalRestraint
 	MilitantFaith
 	ElegantHubris
+	HeroicTragedy
 )
 
 func (t JewelType) String() string {
@@ -22,6 +23,8 @@ func (t JewelType) String() string {
 		return "Militant Faith"
 	case ElegantHubris:
 		return "Elegant Hubris"
+	case HeroicTragedy:
+		return "Heroic Tragedy"
 	default:
 		return "N/A"
 	}
@@ -54,6 +57,11 @@ const (
 	Victario = Conqueror("Victario")
 	Chitus   = Conqueror("Chitus")
 	Caspiro  = Conqueror("Caspiro")
+
+	// Heroic Tragedy (Kalguuran): три линии по кейстоунам (AlternatePassiveSkills Unknown8 1..3)
+	BlackScytheTraining  = Conqueror("Black Scythe Training")
+	CelestialMathematics = Conqueror("Celestial Mathematics")
+	TheUnbreakingCircle  = Conqueror("The Unbreaking Circle")
 )
 
 var TimelessJewelConquerors = map[JewelType]map[Conqueror]*TimelessJewelConqueror{
@@ -147,6 +155,20 @@ var TimelessJewelConquerors = map[JewelType]map[Conqueror]*TimelessJewelConquero
 			Version: 1,
 		},
 	},
+	HeroicTragedy: {
+		BlackScytheTraining: &TimelessJewelConqueror{
+			Index:   1,
+			Version: 0,
+		},
+		CelestialMathematics: &TimelessJewelConqueror{
+			Index:   2,
+			Version: 0,
+		},
+		TheUnbreakingCircle: &TimelessJewelConqueror{
+			Index:   3,
+			Version: 0,
+		},
+	},
 }
 
 type Range struct {
@@ -176,5 +198,9 @@ var TimelessJewelSeedRanges = map[JewelType]Range{
 		Min:     2000,
 		Max:     160000,
 		Special: true,
+	},
+	HeroicTragedy: {
+		Min: 100,
+		Max: 8000,
 	},
 }

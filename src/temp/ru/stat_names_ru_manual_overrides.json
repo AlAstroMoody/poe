@@ -1,0 +1,8 @@
+{
+  "statNamesRuByStringId": {
+    "self_damaging_ailment_duration_+%": "{0}% увеличение длительности наносящих урон состояний на вас"
+  },
+  "statNamesRuReducedByStringId": {
+    "self_damaging_ailment_duration_+%": "{0}% уменьшение длительности наносящих урон состояний на вас"
+  }
+}

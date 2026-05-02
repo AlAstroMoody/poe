@@ -129,6 +129,12 @@ const availableStats = computed(() => {
     })
     .filter((s) => !(s.value in selectedStats.value));
 });
+const filteredAvailableStats = computed(() => {
+  const q = statListFilter.value.trim().toLowerCase();
+  const list = availableStats.value;
+  if (!q) return list;
+  return list.filter((s) => s.label.toLowerCase().includes(q));
+});
 const minTotalWeight = ref(0);
 const searching = ref(false);
 const currentSeed = ref(0);
@@ -144,6 +150,8 @@ const league = ref(localStorage.getItem("league") || "Standard");
 const leagues = ref<{ value: string; label: string }[]>([]);
 const expandedGroup = ref<number | "">("");
 const addStatValue = ref<string | number>("");
+/** Подстрока для сужения списка параметров самоцвета (режим «Выбрать параметры»). */
+const statListFilter = ref("");
 
 function updateUrl() {
   emit("update-url");
@@ -163,6 +171,7 @@ function setMode(m: "seed" | "stats") {
 }
 function changeJewel() {
   selectedStats.value = {};
+  statListFilter.value = "";
   updateUrl();
 }
 function selectStat(statId: number) {
@@ -436,9 +445,13 @@ watch(addStatValue, (v) => {
             </button>
           </div>
         </div>
-
         <template v-if="!showResults">
-          <label class="block mb-1 text-sm">{{ ui("jewel", lang) }}</label>
+          <label class="block mb-1 text-sm"
+            >{{ ui("jewel", lang) }}
+            <span v-if="selectedJewel === 6" class="text-red-500">
+              ТЕСТ! Вероятны ошибки
+            </span>
+          </label>
           <AppSelect
             :model-value="selectedJewel"
             :options="jewels"
@@ -648,9 +661,29 @@ watch(addStatValue, (v) => {
               <template v-else-if="mode === 'stats'">
                 <div class="mt-4">
                   <h3 class="mb-2">{{ ui("addStat", lang) }}</h3>
+                  <label class="sr-only" for="stat-list-filter">
+                    {{ ui("filterStatList", lang) }}
+                  </label>
+                  <AppInput
+                    id="stat-list-filter"
+                    v-model="statListFilter"
+                    type="search"
+                    autocomplete="off"
+                    class="mb-2"
+                    :placeholder="ui('filterStatList', lang)"
+                  />
+                  <p
+                    v-if="
+                      statListFilter.trim() &&
+                      filteredAvailableStats.length === 0
+                    "
+                    class="mb-2 text-sm text-amber-200/90"
+                  >
+                    {{ ui("noResults", lang) }}
+                  </p>
                   <AppSelect
                     v-model="addStatValue"
-                    :options="availableStats"
+                    :options="filteredAvailableStats"
                     :placeholder="ui('selectPlaceholder', lang)"
                     class="w-full"
                   />

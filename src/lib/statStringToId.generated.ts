@@ -11037,7 +11037,7 @@ export const statStringToIdGenerated: Record<string, string> = {
   "__% increased Evasion Rating per Frenzy Charge": "evasion_rating_+%_per_frenzy_charge",
   "__% increased Evasion Rating per Green Socket on Main Hand Weapon": "evasion_rating_+%_per_green_socket_on_main_hand_weapon",
   "__% increased Evasion Rating per __ Dexterity Allocated in Radius": "local_unique_jewel_evasion_rating_+%_per_X_dex_in_radius",
-  "__% increased Evasion Rating per __ Intelligence": "evasion_rating_+%_per_5_intelligence",
+  "__% increased Evasion Rating per __ Intelligence": "evasion_+%_per_10_intelligence",
   "__% increased Evasion Rating per __ Maximum Mana, up to __%": "evasion_rating_+%_per_500_maximum_mana_up_to_100%",
   "__% increased Evasion Rating while Focused": "evasion_rating_+%_during_focus",
   "__% increased Evasion Rating while Phasing": "evasion_rating_+%_while_phasing",
