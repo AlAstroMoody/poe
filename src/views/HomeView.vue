@@ -24,7 +24,7 @@ const bgImage = bgImages[Math.floor(Math.random() * bgImages.length)];
       </h1>
       <div class="text-heading font-celtes mb-5">
         Дерево навыков под 3.28
-        <span class="text-[12px] text-red-400"> +Трагедия героев (тест) </span>
+        <span class="text-[14px]"> +Трагедия героев </span>
       </div>
 
       <nav class="m-0 flex flex-wrap gap-3">

@@ -446,12 +446,7 @@ watch(addStatValue, (v) => {
           </div>
         </div>
         <template v-if="!showResults">
-          <label class="block mb-1 text-sm"
-            >{{ ui("jewel", lang) }}
-            <span v-if="selectedJewel === 6" class="text-red-500">
-              ТЕСТ! Вероятны ошибки
-            </span>
-          </label>
+          <label class="block mb-1 text-sm">{{ ui("jewel", lang) }} </label>
           <AppSelect
             :model-value="selectedJewel"
             :options="jewels"
