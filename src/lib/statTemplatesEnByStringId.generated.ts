@@ -10504,4 +10504,6 @@ export const statTemplatesEnByStringIdGenerated: Record<string, string> = {
   "zombie_slam_area_of_effect_+%": "Raised Zombies' Slam Attack has {0}% increased Area of Effect",
   "zombie_slam_cooldown_speed_+%": "Raised Zombies' Slam Attack has {0}% increased Cooldown Recovery Rate",
   "zombie_slam_damage_+%": "Raised Zombies' Slam Attack deals {0}% increased Damage",
+  "village_max_number_of_disenchanters": "Maximum number of disenchanters in village",
+  "mana_reservation_efficiency_+%": "{0}% increased Mana Reservation Efficiency",
 };

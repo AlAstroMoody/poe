@@ -353,6 +353,21 @@ function main() {
   if (existsSync(passiveSkillRuPath)) {
     fillStatDescriptionsFromTranslations(loadJson(passiveSkillRuPath), stringIdToRu, stringIdToRuReduced);
   }
+  // Дыры в выгрузке GGPK/RePoE (новые статы без строки в passive_skill RU): id → шаблон. Пересборка словаря подхватит.
+  const manualOverridesPath = join(TEMP_RU, "stat_names_ru_manual_overrides.json");
+  if (existsSync(manualOverridesPath)) {
+    const ov = loadJson(manualOverridesPath);
+    if (ov?.statNamesRuByStringId && typeof ov.statNamesRuByStringId === "object") {
+      for (const [key, val] of Object.entries(ov.statNamesRuByStringId)) {
+        if (key && typeof val === "string") stringIdToRu.set(key, val);
+      }
+    }
+    if (ov?.statNamesRuReducedByStringId && typeof ov.statNamesRuReducedByStringId === "object") {
+      for (const [key, val] of Object.entries(ov.statNamesRuReducedByStringId)) {
+        if (key && typeof val === "string") stringIdToRuReduced.set(key, val);
+      }
+    }
+  }
   // Исправление: в данных одна запись с ids [local_physical_damage_+%, local_weapon_no_physical_damage] содержит только «Не наносит физический урон»; для local_physical_damage_+% нужен шаблон увеличения урона.
   const curLocalPhys = stringIdToRu.get("local_physical_damage_+%");
   if (!curLocalPhys || /Не наносит физический урон/i.test(curLocalPhys)) {
@@ -375,6 +390,16 @@ function main() {
     const poedbRu = loadJson(alternatePoedbPath);
     if (poedbRu && typeof poedbRu === "object") {
       for (const [key, val] of Object.entries(poedbRu)) {
+        if (key && typeof val === "string") passiveNamesRuById[key] = val;
+      }
+    }
+  }
+  // Официальные русские имена альтер-пассов из клиента (PyPoE dat json с --language Russian).
+  const alternateFromDatRuPath = join(TEMP_RU, "alternate_passive_names_from_dat_ru.json");
+  if (existsSync(alternateFromDatRuPath)) {
+    const fromDat = loadJson(alternateFromDatRuPath);
+    if (fromDat && typeof fromDat === "object") {
+      for (const [key, val] of Object.entries(fromDat)) {
         if (key && typeof val === "string") passiveNamesRuById[key] = val;
       }
     }

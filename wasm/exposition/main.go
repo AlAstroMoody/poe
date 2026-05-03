@@ -23,6 +23,7 @@ func Expose() *crystalline.Exposer {
 		data.BrutalRestraint: data.BrutalRestraint.String(),
 		data.MilitantFaith:   data.MilitantFaith.String(),
 		data.ElegantHubris:   data.ElegantHubris.String(),
+		data.HeroicTragedy:   data.HeroicTragedy.String(),
 	}, "data", "TimelessJewels")
 
 	e.ExposeOrPanic(data.TimelessJewelConquerors, "data", "TimelessJewelConquerors")
@@ -39,12 +40,12 @@ func Expose() *crystalline.Exposer {
 	e.ExposeOrPanic(string(data.StatTranslationsJSON), "data", "StatTranslationsJSON")
 	e.ExposeOrPanic(string(data.PassiveSkillStatTranslationsJSON), "data", "PassiveSkillStatTranslationsJSON")
 	e.ExposeOrPanic(string(data.PassiveSkillAuraStatTranslationsJSON), "data", "PassiveSkillAuraStatTranslationsJSON")
-	
+
 	// Русские переводы
 	e.ExposeOrPanic(string(data.StatTranslationsRuJSON), "data", "StatTranslationsRuJSON")
 	e.ExposeOrPanic(string(data.PassiveSkillStatTranslationsRuJSON), "data", "PassiveSkillStatTranslationsRuJSON")
 	e.ExposeOrPanic(string(data.PassiveSkillAuraStatTranslationsRuJSON), "data", "PassiveSkillAuraStatTranslationsRuJSON")
-	
+
 	e.ExposeOrPanic(string(data.PossibleStatsJSON), "data", "PossibleStats")
 
 	return e

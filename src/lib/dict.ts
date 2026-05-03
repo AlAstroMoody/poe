@@ -24,6 +24,7 @@ export const jewelNamesRu: Record<number, string> = {
   3: "Жестокая сдержанность", // Brutal Restraint
   4: "Воинственная вера", // Militant Faith
   5: "Изящный эгоизм", // Elegant Hubris
+  6: "Трагедия героев", // Heroic Tragedy
 };
 
 /** Завоеватели: английское имя → русское название (официальная локализация игры) */
@@ -53,6 +54,10 @@ export const conquerorNamesRu: Record<string, string> = {
   Rakiata: "Ракиата",
   Akoya: "Акойя",
   Kiloava: "Килоава",
+  // Heroic Tragedy (Kalguuran)
+  "Celestial Mathematics": "Утред",
+  "The Unbreaking Circle": "Медведь",
+  "Black Scythe Training": "Ворана",
 };
 
 /** Получить отображаемое название самоцвета (по id и английскому label с бэка) */
@@ -170,24 +175,57 @@ export const statTemplatesEnByStringId: Record<string, string> = {
   ...statTemplatesEnByStringIdGenerated,
 };
 
+/**
+ * Строка тултипа RU для стата из WASM: словарь по id, затем по скелетону англ. текста из stats.json,
+ * с учётом варианта reduced/less (как translateStatByDisplayString).
+ */
+export function formatRuStatLineFromWasm(
+  wasmStatId: string,
+  wasmEnText: string,
+  rollValues: number[],
+): string | undefined {
+  let template =
+    statNamesRuByStringId[wasmStatId] ||
+    statNamesRuReducedByStringId[wasmStatId];
+  if (!template && wasmEnText) {
+    const isReduced = /reduced|less\s/i.test(wasmEnText);
+    const skeleton = displayStringToSkeleton(wasmEnText);
+    const mappedId = statStringToId[skeleton];
+    if (mappedId) {
+      template =
+        (isReduced && statNamesRuReducedByStringId[mappedId]) ||
+        statNamesRuByStringId[mappedId];
+    }
+  }
+  if (!template) return undefined;
+  return formatStatTemplate(template, rollValues);
+}
+
 /** Отображаемое название стата по строковому id (единственный способ — только по id). */
 export function statLabelByStringId(
   stringId: string,
   enLabel: string,
   lang: "ru" | "en",
 ): string {
-  if (lang !== "ru") return enLabel;
-  let template = statNamesRuByStringId[stringId];
-  if (template) {
-    return formatStatTemplate(template, []);
-  }
-  // Fallback: WASM может отдавать другой Id — ищем по английскому тексту (skeleton)
-  if (enLabel && typeof enLabel === "string") {
-    const skeleton = displayStringToSkeleton(enLabel);
-    const idBySkeleton = statStringToId[skeleton];
-    if (idBySkeleton) {
-      template = statNamesRuByStringId[idBySkeleton];
-      if (template) return formatStatTemplate(template, []);
+  if (lang === "ru") {
+    let template = statNamesRuByStringId[stringId];
+    if (template) {
+      return formatStatTemplate(template, []);
+    }
+    // Fallback: WASM может отдавать другой Id — ищем по английскому тексту (skeleton)
+    if (enLabel && typeof enLabel === "string") {
+      const skeleton = displayStringToSkeleton(enLabel);
+      const idBySkeleton = statStringToId[skeleton];
+      if (idBySkeleton) {
+        template = statNamesRuByStringId[idBySkeleton];
+        if (template) return formatStatTemplate(template, []);
+      }
+    }
+  } else {
+    // Для английского языка тоже используем шаблоны
+    let template = statTemplatesEnByStringId[stringId];
+    if (template) {
+      return formatStatTemplate(template, []);
     }
   }
   return enLabel;
@@ -224,7 +262,7 @@ export function keystoneLabel(
 
 /**
  * Описание самоцвета «как в игре»: подставляются диапазон (от min до max) и имя завоевателя.
- * jewelId 1–5, conqueror — английское имя с бэка.
+ * jewelId 1–6, conqueror — английское имя с бэка.
  */
 const jewelFlavorRu: Record<number, string> = {
   1: "Омыт в крови от {min} до {max} жертв во имя {conqueror}. Пассивные умения в радиусе завоеваны ваал.",
@@ -232,6 +270,7 @@ const jewelFlavorRu: Record<number, string> = {
   3: "Символизирует служение от {min} до {max} дехара в ахаре {conqueror}. Пассивные умения в радиусе завоеваны маракетами.",
   4: "Выточен во славу от {min} до {max} послушников, обращённых Верховным жрецом {conqueror}. Пассивные умения в радиусе завоеваны храмовниками.",
   5: "Выделено от {min} до {max} монет в память о {conqueror}. Пассивные умения в радиусе завоеваны Вечной империей.",
+  6: "Вспоминая о {min}–{max} славных деяниях рода {conqueror}. Пассивные умения в радиусе завоеваны калгуурами.",
 };
 
 export function getJewelFlavorText(
@@ -303,6 +342,7 @@ export const uiEn = {
   notablesTitle: "Notables",
   smallsTitle: "Smalls",
   selectPlaceholder: "-- Select --",
+  filterStatList: "Search in list…",
   noResults: "No results found",
   customFont: "Custom font",
 } as const;
@@ -341,6 +381,7 @@ export const uiRu: Record<keyof typeof uiEn, string> = {
   notablesTitle: "Ноды",
   smallsTitle: "Малые",
   selectPlaceholder: "— Выберите —",
+  filterStatList: "Поиск в списке…",
   noResults: "Совпадений нет",
   customFont: "Кастомный шрифт",
 };

@@ -32,6 +32,7 @@ import {
   translateStatByDisplayString,
   getStatIdFromDisplayLines,
   getStatTextById,
+  formatRuStatLineFromWasm,
   extractRollsFromDisplayString,
   statIdByRuName,
   ui,
@@ -44,6 +45,10 @@ import {
   getPassiveRowByTreeSkill,
   isPassiveSkillStub,
 } from "@/lib/timelessJewelCalculate";
+import pobAlternateLinesEnById from "@/lib/alternatePassiveDisplayEnById.json";
+
+/** Строки тултипа EN из PoB LegionPassives (sd), когда stat_descriptions нет */
+const pobAltDisplayEn = pobAlternateLinesEnById as Record<string, string[]>;
 
 const props = withDefaults(
   defineProps<{
@@ -96,6 +101,85 @@ function statIdToDisplayFallback(statId: string): string {
   return statId.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function normStatTooltipLine(s: string): string {
+  return s.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/** Текст совпадает с slug из Stats.dat / Id — реального описания из клиента нет. */
+function tooltipTextLooksLikeUnresolvedStatSlug(
+  text: string,
+  statIdStr: string,
+  statRowText: string,
+): boolean {
+  const slugNorm = (s: string) =>
+    normStatTooltipLine(s.replace(/_/g, " "));
+  const t = slugNorm(text);
+  if (t === slugNorm(statIdStr)) return true;
+  if (statRowText && t === slugNorm(statRowText)) return true;
+  if (t === normStatTooltipLine(statIdToDisplayFallback(statIdStr)))
+    return true;
+  return false;
+}
+
+/** Для альтернативной ноды: строки тултипа как в экспорте дерева (официальный текст ноды). */
+function graphAlternateStatLinesFromSkillTree(
+  skill: number | undefined,
+  node: Node | undefined,
+  lang: "ru" | "en",
+  statIndex: number,
+  statsKeysLen: number,
+): string | null {
+  if (skill == null || statsKeysLen <= 0) return null;
+  if (lang === "ru") {
+    const ru = passiveNodeRu[String(skill)];
+    if (ru?.stats?.length) {
+      if (statsKeysLen === 1) return ru.stats.join("\n");
+      if (statIndex < ru.stats.length) return ru.stats[statIndex];
+    }
+  }
+  const stats = node?.stats;
+  if (!stats?.length) return null;
+  if (statsKeysLen === 1) return stats[0];
+  if (statIndex < stats.length) return stats[statIndex];
+  return null;
+}
+
+/** WASM: GetStatByIndex может вернуть null, если нет строки в data/stats.json.gz для этого _key. */
+const warnedMissingStatIds = new Set<number>();
+
+function wasmStatRow(
+  statId: number,
+  context: string,
+): { ID: string; Text: string } {
+  const row = getData().GetStatByIndex(statId) as {
+    ID?: string;
+    Text?: string;
+  } | null | undefined;
+  if (row != null) {
+    return {
+      ID: row.ID || String(statId),
+      Text: row.Text ?? "",
+    };
+  }
+  if (import.meta.env.DEV && !warnedMissingStatIds.has(statId)) {
+    warnedMissingStatIds.add(statId);
+    console.warn(
+      `[SkillTreeCanvas] нет Stats._key=${statId} в встроенном stats.json.gz (${context}). Добавьте строку из экспорта Stats.dat или обновите stats.`,
+    );
+  }
+  return { ID: String(statId), Text: "" };
+}
+
+/**
+ * Go/WASM отдаёт роллы как uint32; отрицательные значения (напр. −25 для self_damaging_ailment_duration_+%)
+ * приходят как 4294967271 — без приведения шаблон показывает мусор.
+ */
+function coerceSignedStatRoll(raw: number): number {
+  if (!Number.isFinite(raw)) return raw;
+  if (raw >= 2147483648 && raw <= 4294967295) return raw - 4294967296;
+  return raw;
+}
+
 /** Роллы из WASM: map uint32→uint32 может прийти с числовыми или строковыми ключами. */
 function wasmStatRoll(
   rolls: Record<number, number> | undefined,
@@ -103,9 +187,9 @@ function wasmStatRoll(
 ): number | undefined {
   if (!rolls) return undefined;
   const a = rolls[i];
-  if (a !== undefined) return a;
-  const b = rolls[i as unknown as keyof typeof rolls];
-  return typeof b === "number" ? b : undefined;
+  const pick = a !== undefined ? a : rolls[i as unknown as keyof typeof rolls];
+  if (typeof pick !== "number") return undefined;
+  return coerceSignedStatRoll(pick);
 }
 
 const jewelRadius = computed(() => baseJewelRadius / scaling.value);
@@ -491,13 +575,19 @@ function render() {
         props.selectedJewel === 1 || props.selectedJewel === 5;
       const isKeystoneUnderJewel =
         isAlternate && !!hoveredNode.value?.isKeystone;
+      /** Heroic Tragedy (6): только нотаблы полностью меняют текст; мелкие — база + дополнения как у Lethal Pride. */
+      const isHeroicTragedyNotableReplace =
+        isAlternate &&
+        props.selectedJewel === 6 &&
+        !!hoveredNode.value?.isNotable;
       const needOriginalStats =
         hoveredNode.value.skill != null &&
         hoveredNode.value.stats?.length &&
         (nodeStats.length === 0 ||
           (isAlternate &&
             !isReplaceOnlyJewel &&
-            !hoveredNode.value?.isKeystone));
+            !hoveredNode.value?.isKeystone &&
+            !isHeroicTragedyNotableReplace));
       if (needOriginalStats && hoveredNode.value.skill != null) {
         const skill = hoveredNode.value.skill;
         const lang = currentLang;
@@ -506,7 +596,8 @@ function render() {
         if (
           lang === "ru" &&
           ruNode?.stats?.length &&
-          (!isAlternate || !isReplaceOnlyJewel)
+          (!isAlternate ||
+            (!isReplaceOnlyJewel && !isHeroicTragedyNotableReplace))
         ) {
           nodeStats = ruNode.stats.map((text) => ({ text, special: false }));
         } else {
@@ -520,7 +611,10 @@ function render() {
           // 1) Есть StatsKeys из WASM — берём stat по индексу, ключ stat.ID, перевод только из словаря по id.
           if (statsKeysFromWasm && statsKeysFromWasm.length > 0) {
             statsKeysFromWasm.forEach((statIndex, i) => {
-              const stat = data.GetStatByIndex(statIndex);
+              const stat = wasmStatRow(
+                statIndex,
+                `tooltip originals graphSkill=${skill} i=${i}`,
+              );
               const rawLine = originals[i];
               const m = rawLine?.match(/([+-]?\d+(?:\.\d+)?)/);
               const roll = m ? parseFloat(m[1]) : undefined;
@@ -607,10 +701,26 @@ function render() {
                 props.selectedConqueror,
               ),
               calculate: result
-                ? {
-                    hasAltSkill: !!result.AlternatePassiveSkill,
-                    additions: result.AlternatePassiveAdditionInformations?.length ?? 0,
-                  }
+                ? (() => {
+                    const ap = result.AlternatePassiveSkill;
+                    const altId = ap?.ID ?? "";
+                    const altNameEn = ap?.Name ?? "";
+                    /** Как в тултипе при RU: словарь id → RU, иначе keystoneLabel. altName в логе — всегда EN из WASM. */
+                    const nameRu = altId
+                      ? (passiveNamesRuById[altId] ??
+                        keystoneLabel(altId, altNameEn, "ru") ??
+                        altNameEn)
+                      : (keystoneLabel(altNameEn, altNameEn, "ru") ?? altNameEn);
+                    return {
+                      hasAltSkill: !!ap,
+                      altId: ap?.ID,
+                      altName: altNameEn,
+                      nameRu,
+                      statRolls: result.StatRolls,
+                      additions:
+                        result.AlternatePassiveAdditionInformations?.length ?? 0,
+                    };
+                  })()
                 : null,
             });
           }
@@ -622,32 +732,80 @@ function render() {
           (altSkill.Name != null ||
             altSkill.ID != null ||
             (altSkill.StatsKeys?.length ?? 0) > 0);
+        /** При полной замене тексты в SkillTree по skill id ещё старые (Acrobatics и т.д.) — не подставлять их вместо WASM-статов. */
+        const skipSkillTreeLineFallbackForAltBody =
+          isReplaceOnlyJewel ||
+          isKeystoneUnderJewel ||
+          isHeroicTragedyNotableReplace;
+
         if (hasMeaningfulAlt) {
-          if (isReplaceOnlyJewel || isKeystoneUnderJewel) nodeStats = [];
+          if (
+            isReplaceOnlyJewel ||
+            isKeystoneUnderJewel ||
+            isHeroicTragedyNotableReplace
+          )
+            nodeStats = [];
           const altName = altSkill.Name;
-          const altId = altSkill.ID;
+          const altId = altSkill.ID ?? "";
           nodeName =
             currentLang === "ru"
               ? ((altId && passiveNamesRuById[altId]) ??
                 keystoneLabel(altName, altName, "ru") ??
                 altName)
               : altName;
+          const pobLines = altId ? pobAltDisplayEn[altId] : undefined;
+          /** PoB EN строки из JSON — для RU не брать их, если есть StatsKeys: иначе statNamesRu из passive_skill.json не используется. */
+          const usePobEnTooltipLines =
+            pobLines?.length &&
+            !(
+              currentLang === "ru" &&
+              (altSkill.StatsKeys?.length ?? 0) > 0
+            );
+          if (usePobEnTooltipLines) {
+            pobLines!.forEach((line) => {
+              nodeStats.push({
+                text: line,
+                special: !isHeroicTragedyNotableReplace,
+              });
+            });
+          } else {
           altSkill.StatsKeys?.forEach((statId, i) => {
-            const stat = data.GetStatByIndex(statId);
+            const stat = wasmStatRow(
+              statId,
+              `AlternatePassiveSkill id=${altId} graphSkill=${hoveredNode.value?.skill} i=${i}`,
+            );
             const tr = inverseTranslations[stat.ID];
             const roll = wasmStatRoll(result.StatRolls, i);
             const lang = currentLang;
             let text: string;
-            // При RU сначала русский шаблон, иначе при смене EN→RU остаётся inverseTranslations (EN)
-            if (lang === "ru" && statNamesRuByStringId[stat.ID]) {
+            if (lang === "ru") {
               const displayRoll =
                 roll != null
                   ? displayRollForStatTemplate(stat.ID, roll)
                   : undefined;
-              text = formatStatTemplate(
-                statNamesRuByStringId[stat.ID],
-                displayRoll != null ? [displayRoll] : [],
+              const rollArr =
+                displayRoll != null ? [displayRoll] : [];
+              const ruLine = formatRuStatLineFromWasm(
+                stat.ID,
+                stat.Text,
+                rollArr,
               );
+              if (ruLine) {
+                text = ruLine;
+              } else if (tr)
+                text =
+                  (roll != null ? formatStats(tr, roll) : stat.ID) || stat.ID;
+              else if (stat.Text && /\{\d+\}/.test(stat.Text))
+                text = formatStatTemplate(stat.Text, roll != null ? [roll] : []);
+              else if (statTemplatesEnByStringId[stat.ID])
+                text = formatStatTemplate(
+                  statTemplatesEnByStringId[stat.ID],
+                  roll != null ? [roll] : [],
+                );
+              else {
+                text = translateStat(statId, roll);
+                if (text === stat.ID) text = statIdToDisplayFallback(stat.ID);
+              }
             } else if (tr)
               text =
                 (roll != null ? formatStats(tr, roll) : stat.ID) || stat.ID;
@@ -662,12 +820,35 @@ function render() {
               text = translateStat(statId, roll);
               if (text === stat.ID) text = statIdToDisplayFallback(stat.ID);
             }
-            nodeStats.push({ text, special: true });
+            const keysLenAlt = altSkill.StatsKeys?.length ?? 0;
+            const treeLinesAlt = skipSkillTreeLineFallbackForAltBody
+              ? null
+              : graphAlternateStatLinesFromSkillTree(
+                  hoveredNode.value?.skill,
+                  hoveredNode.value,
+                  lang,
+                  i,
+                  keysLenAlt,
+                );
+            if (
+              treeLinesAlt &&
+              hoveredNode.value &&
+              tooltipTextLooksLikeUnresolvedStatSlug(text, stat.ID, stat.Text)
+            ) {
+              text = treeLinesAlt;
+            }
+            nodeStats.push({
+              text,
+              special: !isHeroicTragedyNotableReplace,
+            });
           });
+          }
         } else if (
           result &&
           hoveredNode.value.skill != null &&
-          (isReplaceOnlyJewel || isKeystoneUnderJewel)
+          (isReplaceOnlyJewel ||
+            isKeystoneUnderJewel ||
+            isHeroicTragedyNotableReplace)
         ) {
           // Калькулятор вернул пустой AlternatePassiveSkill — показываем оригинал. Если есть StatRolls и известны статы ноды (StatsKeys), собираем строки по id с роллами; иначе берём ruNode.
           const ruNodeFallback = passiveNodeRu[String(hoveredNode.value.skill)];
@@ -680,18 +861,32 @@ function render() {
           ) {
             nodeStats = [];
             statsKeys.forEach((statIndex, i) => {
-              const stat = data.GetStatByIndex(statIndex);
+              const stat = wasmStatRow(
+                statIndex,
+                `empty alt fallback graphSkill=${hoveredNode.value?.skill} i=${i}`,
+              );
               const roll = wasmStatRoll(rolls, i);
               const rollArr =
                 roll != null
                   ? [displayRollForStatTemplate(stat.ID, roll)]
                   : [];
               let text: string;
-              if (currentLang === "ru" && statNamesRuByStringId[stat.ID]) {
-                text = formatStatTemplate(
-                  statNamesRuByStringId[stat.ID],
+              if (currentLang === "ru") {
+                const ruLine = formatRuStatLineFromWasm(
+                  stat.ID,
+                  stat.Text,
                   rollArr,
                 );
+                if (ruLine) {
+                  text = ruLine;
+                } else {
+                  const template =
+                    (stat.Text && /\{\d+\}/.test(stat.Text) ? stat.Text : null) ??
+                    statTemplatesEnByStringId[stat.ID];
+                  text = template
+                    ? formatStatTemplate(template, rollArr)
+                    : statIdToDisplayFallback(stat.ID);
+                }
               } else {
                 const template =
                   (stat.Text && /\{\d+\}/.test(stat.Text) ? stat.Text : null) ??
@@ -712,39 +907,79 @@ function render() {
               }));
           }
         }
-        result?.AlternatePassiveAdditionInformations?.forEach((info) => {
-          info.AlternatePassiveAddition?.StatsKeys?.forEach((statId, i) => {
-            const stat = data.GetStatByIndex(statId);
-            const tr = inverseTranslations[stat.ID];
-            const roll = wasmStatRoll(info.StatRolls, i);
-            const lang = currentLang;
-            let text: string;
-            if (lang === "ru" && statNamesRuByStringId[stat.ID]) {
-              const displayRoll =
-                roll != null
-                  ? displayRollForStatTemplate(stat.ID, roll)
-                  : undefined;
-              text = formatStatTemplate(
-                statNamesRuByStringId[stat.ID],
-                displayRoll != null ? [displayRoll] : [],
+        if (!isHeroicTragedyNotableReplace) {
+          result?.AlternatePassiveAdditionInformations?.forEach((info) => {
+            info.AlternatePassiveAddition?.StatsKeys?.forEach((statId, i) => {
+              const stat = wasmStatRow(
+                statId,
+                `AlternatePassiveAddition graphSkill=${hoveredNode.value?.skill} i=${i}`,
               );
-            } else if (tr)
-              text =
-                (roll != null ? formatStats(tr, roll) : stat.ID) || stat.ID;
-            else if (stat.Text && /\{\d+\}/.test(stat.Text))
-              text = formatStatTemplate(stat.Text, roll != null ? [roll] : []);
-            else if (statTemplatesEnByStringId[stat.ID])
-              text = formatStatTemplate(
-                statTemplatesEnByStringId[stat.ID],
-                roll != null ? [roll] : [],
+              const tr = inverseTranslations[stat.ID];
+              const roll = wasmStatRoll(info.StatRolls, i);
+              const lang = currentLang;
+              let text: string;
+              if (lang === "ru") {
+                const displayRoll =
+                  roll != null
+                    ? displayRollForStatTemplate(stat.ID, roll)
+                    : undefined;
+                const rollArr =
+                  displayRoll != null ? [displayRoll] : [];
+                const ruLine = formatRuStatLineFromWasm(
+                  stat.ID,
+                  stat.Text,
+                  rollArr,
+                );
+                if (ruLine) {
+                  text = ruLine;
+                } else if (tr)
+                  text =
+                    (roll != null ? formatStats(tr, roll) : stat.ID) || stat.ID;
+                else if (stat.Text && /\{\d+\}/.test(stat.Text))
+                  text = formatStatTemplate(stat.Text, roll != null ? [roll] : []);
+                else if (statTemplatesEnByStringId[stat.ID])
+                  text = formatStatTemplate(
+                    statTemplatesEnByStringId[stat.ID],
+                    roll != null ? [roll] : [],
+                  );
+                else {
+                  text = translateStat(statId, roll);
+                  if (text === stat.ID) text = statIdToDisplayFallback(stat.ID);
+                }
+              } else if (tr)
+                text =
+                  (roll != null ? formatStats(tr, roll) : stat.ID) || stat.ID;
+              else if (stat.Text && /\{\d+\}/.test(stat.Text))
+                text = formatStatTemplate(stat.Text, roll != null ? [roll] : []);
+              else if (statTemplatesEnByStringId[stat.ID])
+                text = formatStatTemplate(
+                  statTemplatesEnByStringId[stat.ID],
+                  roll != null ? [roll] : [],
+                );
+              else {
+                text = translateStat(statId, roll);
+                if (text === stat.ID) text = statIdToDisplayFallback(stat.ID);
+              }
+              const keysLenAdd =
+                info.AlternatePassiveAddition?.StatsKeys?.length ?? 0;
+              const treeLinesAdd = graphAlternateStatLinesFromSkillTree(
+                hoveredNode.value?.skill,
+                hoveredNode.value,
+                lang,
+                i,
+                keysLenAdd,
               );
-            else {
-              text = translateStat(statId, roll);
-              if (text === stat.ID) text = statIdToDisplayFallback(stat.ID);
-            }
-            nodeStats.push({ text, special: true });
+              if (
+                treeLinesAdd &&
+                hoveredNode.value &&
+                tooltipTextLooksLikeUnresolvedStatSlug(text, stat.ID, stat.Text)
+              ) {
+                text = treeLinesAdd;
+              }
+              nodeStats.push({ text, special: true });
+            });
           });
-        });
+        }
 
         if (
           hoveredNode.value.skill != null &&
@@ -753,8 +988,8 @@ function render() {
           nodeStats.unshift({
             text:
               currentLang === "ru"
-                ? "⚠ Заглушка passive_skills (дерево новее дампа PoB). Совпадение с игрой/vilsol: npm run sync:vilsol-wasm-data && npm run prepare:wasm-data && npm run wasm:build"
-                : "⚠ Stub passive_skills row. Run: npm run sync:vilsol-wasm-data && npm run prepare:wasm-data && npm run wasm:build",
+                ? "⚠ Заглушка passive_skills (дерево новее дампа). Обновите data/passive_skills*.gz из GGPK/PyPoE: npm run import:pypoe-bundle … → npm run prepare:wasm-data && npm run wasm:build"
+                : "⚠ Stub passive_skills row. Refresh data/passive_skills from your export: npm run import:pypoe-bundle … then npm run prepare:wasm-data && npm run wasm:build",
             special: false,
           });
         }
@@ -764,7 +999,8 @@ function render() {
       if (
         nodeStats.length === 0 &&
         hoveredNode.value.stats &&
-        !(isAlternate && isReplaceOnlyJewel)
+        !(isAlternate && isReplaceOnlyJewel) &&
+        !(isAlternate && isHeroicTragedyNotableReplace)
       ) {
         const lang = currentLang;
         nodeStats = hoveredNode.value.stats.map((s) => ({

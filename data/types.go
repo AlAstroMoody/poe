@@ -21,11 +21,11 @@ type PassiveSkill struct {
 type AlternateTreeVersion struct {
 	Index                                  uint32 `json:"_key"`
 	ID                                     string `json:"Id"`
-	AreSmallAttributePassiveSkillsReplaced bool   `json:"Var1"`
-	AreSmallNormalPassiveSkillsReplaced    bool   `json:"Var2"`
-	MinimumAdditions                       uint32 `json:"Var5"`
-	MaximumAdditions                       uint32 `json:"Var6"`
-	NotableReplacementSpawnWeight          uint32 `json:"Var9"`
+	AreSmallAttributePassiveSkillsReplaced bool   `json:"Flag0"`
+	AreSmallNormalPassiveSkillsReplaced    bool   `json:"Flag1"`
+	MinimumAdditions                       uint32 `json:"Unknown2"`
+	MaximumAdditions                       uint32 `json:"Unknown3"`
+	NotableReplacementSpawnWeight          uint32 `json:"Unknown6"`
 }
 
 type AlternatePassiveSkill struct {
@@ -35,22 +35,22 @@ type AlternatePassiveSkill struct {
 	Name                     string             `json:"Name"`
 	PassiveType              []PassiveSkillType `json:"PassiveType"`
 	StatsKeys                []uint32           `json:"StatsKeys"`
-	Stat1Min                 uint32             `json:"Stat1Min"`
-	Stat1Max                 uint32             `json:"Stat1Max"`
-	Stat2Min                 uint32             `json:"Stat2Min"`
-	Stat2Max                 uint32             `json:"Stat2Max"`
-	Stat3Min                 uint32             `json:"Var9"`
-	Stat3Max                 uint32             `json:"Var10"`
-	Stat4Min                 uint32             `json:"Var11"`
-	Stat4Max                 uint32             `json:"Var12"`
+	Stat1Min                 int32              `json:"Stat1Min"`
+	Stat1Max                 int32              `json:"Stat1Max"`
+	Stat2Min                 int32              `json:"Stat2Min"`
+	Stat2Max                 int32              `json:"Stat2Max"`
+	Stat3Min                 int32              `json:"Unknown0"`
+	Stat3Max                 int32              `json:"Unknown1"`
+	Stat4Min                 int32              `json:"Unknown2"`
+	Stat4Max                 int32              `json:"Unknown3"`
 	SpawnWeight              uint32             `json:"SpawnWeight"`
-	ConquerorIndex           uint32             `json:"Var18"`
+	ConquerorIndex           uint32             `json:"Unknown8"`
 	RandomMin                uint32             `json:"RandomMin"`
 	RandomMax                uint32             `json:"RandomMax"`
-	ConquerorVersion         uint32             `json:"Var24"`
+	ConquerorVersion         uint32             `json:"Unknown9"`
 }
 
-func (a *AlternatePassiveSkill) GetStatMinMax(statMin bool, index uint32) uint32 {
+func (a *AlternatePassiveSkill) GetStatMinMax(statMin bool, index uint32) int32 {
 	switch statMin {
 	case true:
 		switch index {
@@ -84,14 +84,14 @@ type AlternatePassiveAddition struct {
 	AlternateTreeVersionsKey uint32             `json:"AlternateTreeVersionsKey"`
 	SpawnWeight              uint32             `json:"SpawnWeight"`
 	StatsKeys                []uint32           `json:"StatsKeys"`
-	Stat1Min                 uint32             `json:"Stat1Min"`
-	Stat1Max                 uint32             `json:"Stat1Max"`
-	Stat2Min                 uint32             `json:"Var6"`
-	Stat2Max                 uint32             `json:"Var7"`
+	Stat1Min                 int32              `json:"Stat1Min"`
+	Stat1Max                 int32              `json:"Stat1Max"`
+	Stat2Min                 int32              `json:"Unknown0"`
+	Stat2Max                 int32              `json:"Unknown1"`
 	PassiveType              []PassiveSkillType `json:"PassiveType"`
 }
 
-func (a *AlternatePassiveAddition) GetStatMinMax(statMin bool, index uint32) uint32 {
+func (a *AlternatePassiveAddition) GetStatMinMax(statMin bool, index uint32) int32 {
 	switch statMin {
 	case true:
 		switch index {

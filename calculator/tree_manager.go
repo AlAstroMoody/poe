@@ -72,7 +72,7 @@ func (a *AlternateTreeManager) ReplacePassiveSkill(rng *random.NumberGenerator) 
 		return data.AlternatePassiveSkillInformation{
 			AlternatePassiveSkill: alternatePassiveSkillKeyStone,
 			StatRolls: map[uint32]uint32{
-				0: alternatePassiveSkillKeyStone.Stat1Min,
+				0: uint32(alternatePassiveSkillKeyStone.Stat1Min),
 			},
 		}
 	}
@@ -97,10 +97,12 @@ func (a *AlternateTreeManager) ReplacePassiveSkill(rng *random.NumberGenerator) 
 	elements := min(uint32(len(rolledAlternatePassiveSkill.StatsKeys)), 4)
 	alternatePassiveSkillStatRolls := make(map[uint32]uint32, elements)
 	for i := range elements {
-		alternatePassiveSkillStatRolls[i] = rolledAlternatePassiveSkill.GetStatMinMax(true, i)
+		lo := rolledAlternatePassiveSkill.GetStatMinMax(true, i)
+		hi := rolledAlternatePassiveSkill.GetStatMinMax(false, i)
+		alternatePassiveSkillStatRolls[i] = uint32(lo)
 
-		if rolledAlternatePassiveSkill.GetStatMinMax(false, i) > rolledAlternatePassiveSkill.GetStatMinMax(true, i) {
-			alternatePassiveSkillStatRolls[i] = rng.Generate(rolledAlternatePassiveSkill.GetStatMinMax(true, i), rolledAlternatePassiveSkill.GetStatMinMax(false, i))
+		if hi > lo {
+			alternatePassiveSkillStatRolls[i] = rng.Generate(uint32(lo), uint32(hi))
 		}
 	}
 
@@ -140,10 +142,12 @@ func (a *AlternateTreeManager) RollAdditions(minimumAdditions uint32, maximumAdd
 		elements := min(uint32(len(rolledAlternatePassiveAddition.StatsKeys)), 2)
 		alternatePassiveAdditionStatRolls := make(map[uint32]uint32, elements)
 		for j := range elements {
-			alternatePassiveAdditionStatRolls[j] = rolledAlternatePassiveAddition.GetStatMinMax(true, j)
+			lo := rolledAlternatePassiveAddition.GetStatMinMax(true, j)
+			hi := rolledAlternatePassiveAddition.GetStatMinMax(false, j)
+			alternatePassiveAdditionStatRolls[j] = uint32(lo)
 
-			if rolledAlternatePassiveAddition.GetStatMinMax(false, j) > rolledAlternatePassiveAddition.GetStatMinMax(true, j) {
-				alternatePassiveAdditionStatRolls[j] = rng.Generate(rolledAlternatePassiveAddition.GetStatMinMax(true, j), rolledAlternatePassiveAddition.GetStatMinMax(false, j))
+			if hi > lo {
+				alternatePassiveAdditionStatRolls[j] = rng.Generate(uint32(lo), uint32(hi))
 			}
 		}
 

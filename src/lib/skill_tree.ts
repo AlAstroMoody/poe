@@ -127,20 +127,22 @@ function loadEnglishTranslations(data?: {
   PassiveSkillAuraStatTranslationsJSON?: string;
 }) {
   const d = data ?? getData();
-  [
-    d.StatTranslationsJSON,
-    d.PassiveSkillStatTranslationsJSON,
-    d.PassiveSkillAuraStatTranslationsJSON,
-  ]
-    .filter((f): f is string => typeof f === "string")
-    .forEach((f) => {
-      const translations: TranslationFile = JSON.parse(f);
-      translations.descriptors?.forEach((t) => {
-        t.ids?.forEach((id) => {
-          if (!(id in inverseTranslations)) inverseTranslations[id] = t;
-        });
+  /** Сначала общие stat_descriptions, затем passive/aura — для одного id на дереве нужен текст из passive_skill_stat_descriptions. */
+  const layers: { json?: string; override: boolean }[] = [
+    { json: d.StatTranslationsJSON, override: false },
+    { json: d.PassiveSkillStatTranslationsJSON, override: true },
+    { json: d.PassiveSkillAuraStatTranslationsJSON, override: true },
+  ];
+  for (const { json, override } of layers) {
+    if (typeof json !== "string") continue;
+    const translations: TranslationFile = JSON.parse(json);
+    translations.descriptors?.forEach((t) => {
+      t.ids?.forEach((id) => {
+        if (override || !(id in inverseTranslations))
+          inverseTranslations[id] = t;
       });
     });
+  }
 }
 
 async function loadPassiveSkillNameTranslations() {
@@ -314,7 +316,10 @@ function applyStatIndexHandlers(
  * Число для подстановки в русский шаблон {0} (тот же pipeline, что у formatStats для EN).
  * Если нет записи в inverseTranslations — возвращаем rawRoll.
  */
-export function displayRollForStatTemplate(statId: string, rawRoll: number): number {
+export function displayRollForStatTemplate(
+  statId: string,
+  rawRoll: number,
+): number {
   const tr = inverseTranslations[statId];
   if (!tr) return rawRoll;
   const applied = applyStatIndexHandlers(tr, rawRoll);
@@ -347,7 +352,19 @@ type Stat = { Index: number; ID: string; Text: string };
 const statCache: Record<number, Stat> = {};
 export const getStat = (id: number | string): Stat => {
   const n = typeof id === "string" ? parseInt(id, 10) : id;
-  if (!(n in statCache)) statCache[n] = getData().GetStatByIndex(n) as Stat;
+  if (!Number.isFinite(n)) {
+    return { Index: 0, ID: "", Text: "" };
+  }
+  if (!(n in statCache)) {
+    const row = getData().GetStatByIndex(n) as Stat | null | undefined;
+    statCache[n] =
+      row ??
+      ({
+        Index: n,
+        ID: String(n),
+        Text: "",
+      } as Stat);
+  }
   return statCache[n];
 };
 
@@ -517,6 +534,12 @@ const tradeStatNames: Record<number, Record<string, string>> = {
     Chitus: "explicit.pseudo_timeless_jewel_chitus",
     Caspiro: "explicit.pseudo_timeless_jewel_caspiro",
   },
+  // Идентификаторы фильтров торговли — проверьте в игре / trade при смене патча
+  6: {
+    "Black Scythe Training": "explicit.pseudo_timeless_jewel_vorana",
+    "Celestial Mathematics": "explicit.pseudo_timeless_jewel_uhtred",
+    "The Unbreaking Circle": "explicit.pseudo_timeless_jewel_medved",
+  },
 };
 
 export const constructQuery = (
@@ -582,11 +605,19 @@ export const openTrade = (
   jewel: number,
   conqueror: string,
   results: SearchWithSeed[],
-  platform = "PC",
-  league = "Standard",
+  platform: string,
+  league: string,
 ) => {
+  if (!platform || typeof platform !== "string") {
+    platform = "PC";
+  }
+
+  if (!league || typeof league !== "string") {
+    league = "Standard";
+  }
+
   const url = new URL(
-    `https://www.pathofexile.com/trade/search${platform === "PC" ? "" : "/" + platform.toLowerCase()}/${league}`,
+    `https://pathofexile.com/trade/search${platform === "PC" ? "" : `/${platform.toLowerCase()}`}/${league}`,
   );
   url.searchParams.set(
     "q",

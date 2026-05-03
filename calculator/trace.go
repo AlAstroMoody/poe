@@ -99,7 +99,7 @@ func AlternateLookupTrace(passiveID uint32, seed uint32, timelessJewelType data.
 		JewelType:         uint32(timelessJewelType),
 		Conqueror:         string(conqueror),
 		SeedUI:            seed,
-		LookupSummary:     "Пулы: GetApplicableAlternatePassiveSkills(passiveSkillType, alternateTreeVersion.Index) и GetApplicableAlternatePassiveAdditions(...); RNG как в upstream Vilsol/timeless-jewels.",
+		LookupSummary:     "Пулы: GetApplicableAlternatePassiveSkills(passiveSkillType, alternateTreeVersion.Index) и GetApplicableAlternatePassiveAdditions(...); RNG как в эталонной реализации timeless-jewels.",
 	}
 
 	ps := data.GetPassiveSkillByIndex(passiveID)

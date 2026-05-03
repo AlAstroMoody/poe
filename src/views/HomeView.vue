@@ -22,7 +22,11 @@ const bgImage = bgImages[Math.floor(Math.random() * bgImages.length)];
       >
         Вневременные <br class="block md:hidden" />самоцветы
       </h1>
-      <div class="text-heading font-celtes mb-5">Дерево навыков под 3.28</div>
+      <div class="text-heading font-celtes mb-5">
+        Дерево навыков под 3.28
+        <span class="text-[14px]"> +Трагедия героев </span>
+      </div>
+
       <nav class="m-0 flex flex-wrap gap-3">
         <AppButton to="/tree">Калькулятор</AppButton>
         <AppButton to="/instruction">Инструкция</AppButton>

@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Локальные пути к GGPK / PyPoE (см. .env.poe.example)
+.env.poe
+
 # Editor
 .vscode/*
 !.vscode/extensions.json
