@@ -148,7 +148,7 @@ watch(addStatValue, (v) => {
   <div class="tree-menu-root" data-tree-menu>
     <div
       v-if="!collapsed"
-      class="themed absolute top-0 left-0 z-40 max-h-screen w-[min(100vw-1rem,22.5rem)] overflow-x-hidden overflow-y-auto rounded-br-xl border border-surface-border/30 bg-surface/95 shadow-surface backdrop-blur-md md:w-[36rem] lg:w-[40rem] xl:w-[42rem]"
+      class="themed absolute top-0 left-0 z-40 max-h-screen w-[min(100vw-1rem,22.5rem)] overflow-x-hidden overflow-y-auto rounded-br-xl border border-surface-border bg-surface/95 shadow-surface backdrop-blur-md md:w-[36rem] lg:w-[40rem] xl:w-[42rem]"
     >
       <div
         v-if="searching"

@@ -88,8 +88,8 @@ function updateStatWeight(id: number, value: unknown) {
     class="mt-5 flex min-h-[100px] flex-col overflow-auto"
   >
     <div
-      v-for="(stat, id) in selectedStats"
-      :key="id"
+      v-for="stat in selectedStats"
+      :key="stat.id"
       class="mb-3 rounded-lg border border-surface-border/20 bg-black/20 p-3 last:mb-0"
     >
       <div class="flex items-start gap-2">
@@ -121,7 +121,7 @@ function updateStatWeight(id: number, value: unknown) {
             min="0"
             :class="numInput"
             @input="
-              updateStatMin(id, ($event.target as HTMLInputElement).value)
+              updateStatMin(stat.id, ($event.target as HTMLInputElement).value)
             "
           />
         </label>
@@ -133,7 +133,10 @@ function updateStatWeight(id: number, value: unknown) {
             min="0"
             :class="numInput"
             @input="
-              updateStatWeight(id, ($event.target as HTMLInputElement).value)
+              updateStatWeight(
+                stat.id,
+                ($event.target as HTMLInputElement).value,
+              )
             "
           />
         </label>
