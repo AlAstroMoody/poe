@@ -166,7 +166,7 @@ function initializeFromGlobal(): void {
 }
 
 /** Local wasm from public/ (preferred in dev and prod). Respect Vite base path (e.g. /poe/). */
-const LOCAL_WASM_URL = `${import.meta.env.BASE_URL}calculator.wasm`;
+const LOCAL_WASM_URL = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/calculator.wasm`;
 const PRIMARY_WASM_URL = LOCAL_WASM_URL;
 
 /** В dev иначе после `npm run wasm:build` браузер может отдавать старый calculator.wasm из кэша. */
@@ -276,10 +276,11 @@ export async function loadWasm(
       go,
       onProgress,
     );
-  } catch {
+  } catch (err: any) {
+    console.error("WASM Instantiation Error:", err);
     if (!FALLBACK_WASM_URL) {
       throw new Error(
-        `Failed to load local WASM from ${PRIMARY_WASM_URL}. Put calculator.wasm in public/.`,
+        `Failed to load local WASM from ${PRIMARY_WASM_URL}. Error: ${err?.message || String(err)}`,
       );
     }
     try {

@@ -9,43 +9,58 @@
  * - write metadata for reproducibility
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
-import { gzipSync, gunzipSync } from 'zlib';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { gzipSync, gunzipSync } from "zlib";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(__dirname, '..');
-const SRC_SKILLTREE = join(ROOT, 'src', 'temp', 'en', 'skilltree-export', 'data.json');
-const OUT = join(ROOT, 'data');
+const ROOT = join(__dirname, "..");
+const SRC_SKILLTREE = join(
+  ROOT,
+  "src",
+  "temp",
+  "en",
+  "skilltree-export",
+  "data.json",
+);
+const SRC_ALTERNATE = join(
+  ROOT,
+  "src",
+  "temp",
+  "en",
+  "skilltree-export",
+  "alternate.json",
+);
+const OUT = join(ROOT, "data");
 
 // Required by data/main.go go:embed declarations
 const REQUIRED_GZ = [
-  'alternate_passive_additions.json.gz',
-  'alternate_passive_skills.json.gz',
-  'alternate_tree_versions.json.gz',
-  'passive_skills.json.gz',
-  'stats.json.gz',
-  'SkillTree.json.gz',
-  'stat_descriptions.json.gz',
-  'passive_skill_stat_descriptions.json.gz',
-  'passive_skill_aura_stat_descriptions.json.gz',
-  'stat_descriptions_ru.json.gz',
-  'passive_skill_stat_descriptions_ru.json.gz',
-  'passive_skill_aura_stat_descriptions_ru.json.gz',
-  'possible_stats.json.gz'
+  "alternate_passive_additions.json.gz",
+  "alternate_passive_skills.json.gz",
+  "alternate_tree_versions.json.gz",
+  "passive_skills.json.gz",
+  "stats.json.gz",
+  "SkillTree.json.gz",
+  "stat_descriptions.json.gz",
+  "passive_skill_stat_descriptions.json.gz",
+  "passive_skill_aura_stat_descriptions.json.gz",
+  "stat_descriptions_ru.json.gz",
+  "passive_skill_stat_descriptions_ru.json.gz",
+  "passive_skill_aura_stat_descriptions_ru.json.gz",
+  "possible_stats.json.gz",
 ];
 
 function mustExist(path, hint) {
   if (!existsSync(path)) {
-    throw new Error(`Missing file: ${path}${hint ? `\n${hint}` : ''}`);
+    throw new Error(`Missing file: ${path}${hint ? `\n${hint}` : ""}`);
   }
 }
 
 function writeGzipJson(outJsonPath, parsed) {
   const json = JSON.stringify(parsed);
-  writeFileSync(outJsonPath, json, 'utf8');
-  writeFileSync(`${outJsonPath}.gz`, gzipSync(Buffer.from(json, 'utf8')));
+  writeFileSync(outJsonPath, json, "utf8");
+  writeFileSync(`${outJsonPath}.gz`, gzipSync(Buffer.from(json, "utf8")));
 }
 
 /**
@@ -56,7 +71,7 @@ function writeGzipJson(outJsonPath, parsed) {
 function mergePassiveSkillStubsFromSkillTree(skillTree, passiveSkillsPath) {
   if (!existsSync(passiveSkillsPath)) return 0;
   const raw = gunzipSync(readFileSync(passiveSkillsPath));
-  const passiveSkills = JSON.parse(raw.toString('utf8'));
+  const passiveSkills = JSON.parse(raw.toString("utf8"));
   if (!Array.isArray(passiveSkills)) return 0;
 
   const byGraph = new Set();
@@ -82,7 +97,7 @@ function mergePassiveSkillStubsFromSkillTree(skillTree, passiveSkillsPath) {
       Id: `skilltree_stub_${sidNum}`,
       Stats: [],
       PassiveSkillGraphId: sidNum,
-      Name: typeof n.name === 'string' ? n.name : '',
+      Name: typeof n.name === "string" ? n.name : "",
       IsKeystone: !!n.isKeystone,
       IsNotable: !!n.isNotable,
       IsJewelSocket: !!n.isJewelSocket,
@@ -94,9 +109,9 @@ function mergePassiveSkillStubsFromSkillTree(skillTree, passiveSkillsPath) {
   if (added === 0) return 0;
 
   const json = JSON.stringify(passiveSkills);
-  const outJson = passiveSkillsPath.replace(/\.gz$/, '');
-  writeFileSync(outJson, json, 'utf8');
-  writeFileSync(passiveSkillsPath, gzipSync(Buffer.from(json, 'utf8')));
+  const outJson = passiveSkillsPath.replace(/\.gz$/, "");
+  writeFileSync(outJson, json, "utf8");
+  writeFileSync(passiveSkillsPath, gzipSync(Buffer.from(json, "utf8")));
   return added;
 }
 
@@ -104,20 +119,35 @@ function main() {
   mkdirSync(OUT, { recursive: true });
 
   // 1) Update SkillTree from official GGG export
-  mustExist(
-    SRC_SKILLTREE,
-    'Run: npm run fetch:skilltree-export',
-  );
-  const skillTreeRaw = readFileSync(SRC_SKILLTREE, 'utf8');
+  mustExist(SRC_SKILLTREE, "Run: npm run fetch:skilltree-export");
+  const skillTreeRaw = readFileSync(SRC_SKILLTREE, "utf8");
   const skillTree = JSON.parse(skillTreeRaw);
-  if (!skillTree || typeof skillTree !== 'object' || Array.isArray(skillTree)) {
-    throw new Error('Invalid skilltree-export data.json shape');
+
+  // Merge jewelRadius sprites from alternate.json if missing or for safety
+  if (existsSync(SRC_ALTERNATE)) {
+    try {
+      const altRaw = readFileSync(SRC_ALTERNATE, "utf8");
+      const altTree = JSON.parse(altRaw);
+      if (altTree.sprites && altTree.sprites.jewelRadius) {
+        skillTree.sprites = skillTree.sprites || {};
+        skillTree.sprites.jewelRadius = altTree.sprites.jewelRadius;
+        console.log(
+          "Merged jewelRadius sprites from alternate.json into SkillTree.json",
+        );
+      }
+    } catch (e) {
+      console.warn("Failed to merge sprites from alternate.json:", e.message);
+    }
   }
-  writeGzipJson(join(OUT, 'SkillTree.json'), skillTree);
+
+  if (!skillTree || typeof skillTree !== "object" || Array.isArray(skillTree)) {
+    throw new Error("Invalid skilltree-export data.json shape");
+  }
+  writeGzipJson(join(OUT, "SkillTree.json"), skillTree);
 
   const stubs = mergePassiveSkillStubsFromSkillTree(
     skillTree,
-    join(OUT, 'passive_skills.json.gz'),
+    join(OUT, "passive_skills.json.gz"),
   );
   if (stubs > 0) {
     console.log(
@@ -127,17 +157,17 @@ function main() {
 
   // Keep raw snapshots for debugging / diffing
   const snapshots = [
-    ['data.json', 'skilltree-export.data.json'],
-    ['alternate.json', 'skilltree-export.alternate.json'],
-    ['ruthless.json', 'skilltree-export.ruthless.json'],
-    ['ruthless-alternate.json', 'skilltree-export.ruthless-alternate.json']
+    ["data.json", "skilltree-export.data.json"],
+    ["alternate.json", "skilltree-export.alternate.json"],
+    ["ruthless.json", "skilltree-export.ruthless.json"],
+    ["ruthless-alternate.json", "skilltree-export.ruthless-alternate.json"],
   ];
   for (const [srcName, outName] of snapshots) {
-    const src = join(ROOT, 'src', 'temp', 'en', 'skilltree-export', srcName);
+    const src = join(ROOT, "src", "temp", "en", "skilltree-export", srcName);
     if (!existsSync(src)) continue;
-    const raw = readFileSync(src, 'utf8');
+    const raw = readFileSync(src, "utf8");
     const parsed = JSON.parse(raw);
-    writeFileSync(join(OUT, outName), JSON.stringify(parsed), 'utf8');
+    writeFileSync(join(OUT, outName), JSON.stringify(parsed), "utf8");
   }
 
   // 2) Validate all required embed inputs
@@ -149,26 +179,35 @@ function main() {
 
   if (missing.length) {
     throw new Error(
-      `Missing required data/*.json.gz for wasm build:\n- ${missing.join('\n- ')}\n` +
-        'Copy/generate these files into poe/data before running wasm:build.',
+      `Missing required data/*.json.gz for wasm build:\n- ${missing.join("\n- ")}\n` +
+        "Copy/generate these files into poe/data before running wasm:build.",
     );
   }
 
   // 3) Metadata
   const metadata = {
     source: {
-      skilltreeExport: 'https://raw.githubusercontent.com/grindinggear/skilltree-export/master/data.json',
+      skilltreeExport:
+        "https://raw.githubusercontent.com/grindinggear/skilltree-export/master/data.json",
     },
     generatedAt: new Date().toISOString(),
-    updated: ['SkillTree.json', 'SkillTree.json.gz', 'passive_skills.json.gz (stubs if any)'],
+    updated: [
+      "SkillTree.json",
+      "SkillTree.json.gz",
+      "passive_skills.json.gz (stubs if any)",
+    ],
     passiveSkillStubsMerged: stubs,
     validatedGzCount: REQUIRED_GZ.length,
   };
-  writeFileSync(join(OUT, 'prepare-wasm-data.meta.json'), JSON.stringify(metadata, null, 2), 'utf8');
+  writeFileSync(
+    join(OUT, "prepare-wasm-data.meta.json"),
+    JSON.stringify(metadata, null, 2),
+    "utf8",
+  );
 
-  console.log('Prepared wasm data in', OUT);
-  console.log('Updated: SkillTree.json + SkillTree.json.gz');
-  console.log('Validated required gzip assets:', REQUIRED_GZ.length);
+  console.log("Prepared wasm data in", OUT);
+  console.log("Updated: SkillTree.json + SkillTree.json.gz");
+  console.log("Validated required gzip assets:", REQUIRED_GZ.length);
 }
 
 main();

@@ -288,6 +288,7 @@ type Sprites struct {
 	MasteryActiveEffect   map[string]Sprite `json:"masteryActiveEffect"`
 	GroupBackground       map[string]Sprite `json:"groupBackground"`
 	Frame                 map[string]Sprite `json:"frame"`
+	JewelRadius           map[string]Sprite `json:"jewelRadius"`
 }
 
 type Sprite struct {

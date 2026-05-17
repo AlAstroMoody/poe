@@ -136,6 +136,7 @@ export interface Sprites {
   masteryActiveEffect: { [key: string]: Sprite };
   groupBackground: { [key: string]: Sprite };
   frame: { [key: string]: Sprite };
+  jewelRadius: { [key: string]: Sprite };
 }
 
 export interface RenderParams {

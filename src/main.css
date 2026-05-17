@@ -21,6 +21,14 @@
   --color-button-neutral: rgba(115, 115, 115, 0.2);
   --color-button-selected: rgba(255, 255, 255, 0.2);
   --color-hover: rgba(255, 255, 255, 0.05);
+
+  --color-surface: rgba(12, 12, 12, 0.92);
+  --color-surface-border: rgba(200, 193, 180, 0.18);
+  --color-surface-header: rgba(200, 193, 180, 0.08);
+  --color-accent: #c2410c;
+  --color-accent-muted: #d4a574;
+  --radius-surface: 0.5rem;
+  --shadow-surface: 0 8px 32px rgba(0, 0, 0, 0.55);
 }
 
 html,

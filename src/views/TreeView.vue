@@ -150,12 +150,6 @@ watch(() => route.query, readQuery, { deep: true });
   height: 100%;
   isolation: isolate;
 }
-.tree-content :deep(.canvas-wrap) {
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 0;
-}
 .tree-content :deep(.tree-menu-root) {
   position: absolute;
   top: 0;
