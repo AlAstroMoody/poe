@@ -7,7 +7,7 @@ import type {
   TranslationFile,
 } from "./skill_tree_types";
 import { getData } from "../services/wasmDataService";
-import { getLanguage } from "./i18n";
+import { getLanguage, type Lang } from "./i18n";
 import { statValues } from "./values";
 import {
   statNamesRuByStringId,
@@ -68,39 +68,59 @@ export const loadSkillTree = async (
   });
   onProgress?.({ phase: "nodes", percent: 35 });
 
-  Object.keys(skillTree.sprites.keystoneInactive["0.3835"].coords).forEach(
-    (c) => (inverseSprites[c] = skillTree.sprites.keystoneInactive["0.3835"]),
+  const populateInverseSprites = (
+    spriteMap: Record<string, Sprite> | undefined,
+    target: Record<string, Sprite>,
+  ) => {
+    if (!spriteMap) return;
+    // Ищем подходящий зум-уровень (предпочтительно 0.3835, иначе первый попавшийся)
+    const zoomLevel =
+      "0.3835" in spriteMap
+        ? "0.3835"
+        : Object.keys(spriteMap).sort(
+            (a, b) => parseFloat(b) - parseFloat(a),
+          )[0];
+
+    if (zoomLevel && spriteMap[zoomLevel]) {
+      const sprite = spriteMap[zoomLevel];
+      Object.keys(sprite.coords).forEach((c) => {
+        target[c] = sprite;
+      });
+    }
+  };
+
+  populateInverseSprites(skillTree.sprites.keystoneInactive, inverseSprites);
+  populateInverseSprites(skillTree.sprites.notableInactive, inverseSprites);
+  populateInverseSprites(skillTree.sprites.normalInactive, inverseSprites);
+  populateInverseSprites(skillTree.sprites.masteryInactive, inverseSprites);
+
+  populateInverseSprites(
+    skillTree.sprites.keystoneActive,
+    inverseSpritesActive,
   );
-  Object.keys(skillTree.sprites.notableInactive["0.3835"].coords).forEach(
-    (c) => (inverseSprites[c] = skillTree.sprites.notableInactive["0.3835"]),
+  populateInverseSprites(skillTree.sprites.notableActive, inverseSpritesActive);
+  populateInverseSprites(skillTree.sprites.normalActive, inverseSpritesActive);
+  populateInverseSprites(
+    skillTree.sprites.masteryInactive,
+    inverseSpritesActive,
   );
-  Object.keys(skillTree.sprites.normalInactive["0.3835"].coords).forEach(
-    (c) => (inverseSprites[c] = skillTree.sprites.normalInactive["0.3835"]),
-  );
-  Object.keys(skillTree.sprites.masteryInactive["0.3835"].coords).forEach(
-    (c) => (inverseSprites[c] = skillTree.sprites.masteryInactive["0.3835"]),
-  );
-  Object.keys(skillTree.sprites.keystoneActive["0.3835"].coords).forEach(
-    (c) =>
-      (inverseSpritesActive[c] = skillTree.sprites.keystoneActive["0.3835"]),
-  );
-  Object.keys(skillTree.sprites.notableActive["0.3835"].coords).forEach(
-    (c) =>
-      (inverseSpritesActive[c] = skillTree.sprites.notableActive["0.3835"]),
-  );
-  Object.keys(skillTree.sprites.normalActive["0.3835"].coords).forEach(
-    (c) => (inverseSpritesActive[c] = skillTree.sprites.normalActive["0.3835"]),
-  );
-  Object.keys(skillTree.sprites.masteryInactive["0.3835"].coords).forEach(
-    (c) =>
-      (inverseSpritesActive[c] = skillTree.sprites.masteryInactive["0.3835"]),
-  );
-  Object.keys(skillTree.sprites.groupBackground["0.3835"].coords).forEach(
-    (c) => (inverseSprites[c] = skillTree.sprites.groupBackground["0.3835"]),
-  );
-  Object.keys(skillTree.sprites.frame["0.3835"].coords).forEach(
-    (c) => (inverseSprites[c] = skillTree.sprites.frame["0.3835"]),
-  );
+
+  populateInverseSprites(skillTree.sprites.groupBackground, inverseSprites);
+  populateInverseSprites(skillTree.sprites.frame, inverseSprites);
+
+  if (skillTree.sprites.jewelRadius) {
+    // Jewel radius обычно имеет зум-уровень "1"
+    const radiusZoom =
+      "1" in skillTree.sprites.jewelRadius
+        ? "1"
+        : Object.keys(skillTree.sprites.jewelRadius)[0];
+    if (radiusZoom) {
+      const sprite = skillTree.sprites.jewelRadius[radiusZoom];
+      Object.keys(sprite.coords).forEach((c) => {
+        inverseSprites[c] = sprite;
+      });
+    }
+  }
   onProgress?.({ phase: "sprites", percent: 60 });
 
   await loadTranslations();
@@ -464,11 +484,15 @@ export async function runReverseSearch(
   return { grouped: searchGrouped, raw: rawList };
 }
 
-export const translateStat = (id: number, roll?: number): string => {
+export const translateStat = (
+  id: number,
+  roll?: number,
+  lang?: Lang,
+): string => {
   const stat = getStat(id);
-  const lang = getLanguage();
+  const effectiveLang = lang ?? getLanguage();
   const template = statNamesRuByStringId[stat.ID];
-  if (lang === "ru" && template) {
+  if (effectiveLang === "ru" && template) {
     const displayRoll =
       roll != null ? displayRollForStatTemplate(stat.ID, roll) : undefined;
     return formatStatTemplate(
@@ -490,7 +514,7 @@ export const translateStat = (id: number, roll?: number): string => {
 export const translatePassiveSkillName = (
   passiveSkillGraphId: number,
   defaultName?: string,
-  lang?: "ru" | "en",
+  lang?: Lang,
 ): string => {
   if (!defaultName) return "";
   if (lang !== "ru") return defaultName;
@@ -502,6 +526,34 @@ export const translatePassiveSkillName = (
     defaultName
   );
 };
+
+export function translateTreeSkillName(skillId: number, lang: Lang): string {
+  const node = skillTree.nodes[skillId];
+  let nodeName = node?.name ?? String(skillId);
+  if (lang !== "ru") return nodeName;
+
+  const ruNode = passiveNodeRu[String(skillId)];
+  if (ruNode?.name) return ruNode.name;
+
+  try {
+    const data = getData();
+    const treeEntry = data.TreeToPassive[skillId];
+    if (treeEntry) {
+      const passiveSkill = data.GetPassiveSkillByIndex(treeEntry.Index);
+      if (passiveSkill?.PassiveSkillGraphID != null) {
+        nodeName =
+          translatePassiveSkillName(
+            passiveSkill.PassiveSkillGraphID,
+            nodeName,
+            lang,
+          ) || nodeName;
+      }
+    }
+  } catch {
+    /* WASM not ready */
+  }
+  return nodeName;
+}
 
 const tradeStatNames: Record<number, Record<string, string>> = {
   1: {
@@ -629,32 +681,10 @@ export const openTrade = (
 export type CombinedResult = {
   id: string;
   rawStat: string;
-  stat: string;
   passives: number[];
 };
 
-const colorKeys: Record<string, string> = {
-  physical: "#c79d93",
-  cast: "#b3f8fe",
-  fire: "#ff9a77",
-  cold: "#93d8ff",
-  lightning: "#f8cb76",
-  attack: "#da814d",
-  life: "#c96e6e",
-  chaos: "#d8a7d3",
-  unique: "#af6025",
-  critical: "#b2a7d6",
-};
-function colorMessage(message: string): string {
-  Object.entries(colorKeys).forEach(([key, value]) => {
-    const re = new RegExp(`(${key}(?:$|\\s))|((?:^|\\s)${key})`, "gi");
-    message = message.replace(
-      re,
-      `<span style="color:${value};font-weight:bold">$1$2</span>`,
-    );
-  });
-  return message;
-}
+export type SortOrder = "count" | "alphabet" | "rarity" | "value";
 
 export function combineResults(
   rawResults: {
@@ -666,7 +696,6 @@ export function combineResults(
     };
     node: number;
   }[],
-  withColors: boolean,
   only: "notables" | "passives" | "all",
   jewel: number,
 ): CombinedResult[] {
@@ -695,7 +724,6 @@ export function combineResults(
     return {
       id: statID,
       rawStat: translated,
-      stat: withColors ? colorMessage(translated) : translated,
       passives: mappedStats[parseInt(statID, 10)],
     };
   });
@@ -703,7 +731,7 @@ export function combineResults(
 
 export function sortCombined(
   combined: CombinedResult[],
-  order: "count" | "alphabet" | "rarity" | "value",
+  order: SortOrder,
   jewel: number,
 ): CombinedResult[] {
   const allPossibleStats: Record<number, Record<string, number>> = JSON.parse(

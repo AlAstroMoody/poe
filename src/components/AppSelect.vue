@@ -8,8 +8,9 @@ const props = withDefaults(
     options: { value: string | number; label: string }[];
     placeholder?: string;
     class?: string;
+    dropdownMinWidth?: number;
   }>(),
-  { placeholder: "", class: "" },
+  { placeholder: "", class: "", dropdownMinWidth: 220 },
 );
 
 const root = ref<HTMLElement | null>(null);
@@ -32,10 +33,11 @@ const currentLabel = computed(() => {
 function updateDropdownPosition() {
   if (!trigger.value) return;
   const r = trigger.value.getBoundingClientRect();
+  const width = Math.max(r.width, props.dropdownMinWidth);
   dropdownStyle.value = {
     top: `${r.bottom + 4}px`,
     left: `${r.left}px`,
-    width: `${r.width}px`,
+    width: `${width}px`,
   };
 }
 
@@ -62,7 +64,7 @@ onUnmounted(() => document.removeEventListener("click", onDocClick));
     <button
       ref="trigger"
       type="button"
-      class="w-full cursor-pointer rounded border-0 bg-neutral-700 p-2 text-left text-inherit"
+      class="w-full cursor-pointer rounded-md border border-surface-border/25 bg-input-bg px-3 py-2.5 text-left text-sm text-inherit outline-none transition-[border-color,box-shadow] hover:border-surface-border/40 focus:border-accent/40 focus:ring-1 focus:ring-accent/25"
       :class="props.class"
       aria-haspopup="listbox"
       :aria-expanded="open"
@@ -74,7 +76,7 @@ onUnmounted(() => document.removeEventListener("click", onDocClick));
     <Teleport to="body">
       <div
         v-show="open"
-        class="fixed z-[9999] max-h-64 overflow-y-auto rounded border border-white/20 bg-neutral-700 py-1 shadow-lg"
+        class="fixed z-[9999] max-h-64 overflow-y-auto rounded-md border border-surface-border/30 bg-surface py-1 shadow-surface backdrop-blur-md"
         role="listbox"
         :style="dropdownStyle"
       >

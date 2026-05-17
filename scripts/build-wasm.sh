@@ -22,7 +22,7 @@ fi
 mkdir -p "$ROOT/public"
 
 pushd "$SRC_ROOT" >/dev/null
-GOCACHE="/tmp/go-cache-poe-$$" GOOS=js GOARCH=wasm go build -ldflags='-s -w' -o "$OUT" "$WASM_PKG"
+GOCACHE="/tmp/go-cache-poe-$$" GOOS=js GOARCH=wasm go build -o "$OUT" "$WASM_PKG"
 popd >/dev/null
 
 if [[ -f "$OUT" ]]; then

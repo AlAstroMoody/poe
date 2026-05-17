@@ -31,7 +31,7 @@ function onInput(e: Event) {
     :type="type ?? 'text'"
     :min="min"
     :max="max"
-    class="w-full p-2 bg-neutral-700 rounded text-inherit border-0"
+    class="w-full rounded-md border border-surface-border/25 bg-input-bg px-3 py-2.5 text-sm text-inherit outline-none transition-[border-color,box-shadow] focus:border-accent/40 focus:ring-1 focus:ring-accent/25"
     :class="props.class"
     @input="onInput"
     v-bind="$attrs"

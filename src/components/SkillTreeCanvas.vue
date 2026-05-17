@@ -46,6 +46,11 @@ import {
   isPassiveSkillStub,
 } from "@/lib/timelessJewelCalculate";
 import pobAlternateLinesEnById from "@/lib/alternatePassiveDisplayEnById.json";
+import TreeTooltip, { type TooltipLine } from "./TreeTooltip.vue";
+import {
+  tooltipPlacementStyle,
+  clampTooltipAnchorX,
+} from "@/lib/tooltipPlacement";
 
 /** Строки тултипа EN из PoB LegionPassives (sd), когда stat_descriptions нет */
 const pobAltDisplayEn = pobAlternateLinesEnById as Record<string, string[]>;
@@ -89,10 +94,11 @@ let animFrame = 0;
 /** Кеш содержимого тултипа: пересчёт только при смене ноды/языка/камня. */
 type TooltipCache = {
   nodeName: string;
-  allLines: { text: string; offset: number; special: boolean }[];
-  maxWidth: number;
+  lines: TooltipLine[];
 };
 let tooltipCache: { key: string; data: TooltipCache } | null = null;
+const tooltipContent = ref<TooltipCache | null>(null);
+const tooltipStyle = ref<Record<string, string> | null>(null);
 let lastTooltipLang: "ru" | "en" | null = null;
 let lastAltLogKey: string | null = null;
 
@@ -111,8 +117,7 @@ function tooltipTextLooksLikeUnresolvedStatSlug(
   statIdStr: string,
   statRowText: string,
 ): boolean {
-  const slugNorm = (s: string) =>
-    normStatTooltipLine(s.replace(/_/g, " "));
+  const slugNorm = (s: string) => normStatTooltipLine(s.replace(/_/g, " "));
   const t = slugNorm(text);
   if (t === slugNorm(statIdStr)) return true;
   if (statRowText && t === slugNorm(statRowText)) return true;
@@ -151,10 +156,13 @@ function wasmStatRow(
   statId: number,
   context: string,
 ): { ID: string; Text: string } {
-  const row = getData().GetStatByIndex(statId) as {
-    ID?: string;
-    Text?: string;
-  } | null | undefined;
+  const row = getData().GetStatByIndex(statId) as
+    | {
+        ID?: string;
+        Text?: string;
+      }
+    | null
+    | undefined;
   if (row != null) {
     return {
       ID: row.ID || String(statId),
@@ -194,8 +202,6 @@ function wasmStatRoll(
 
 const jewelRadius = computed(() => baseJewelRadius / scaling.value);
 const startGroups = [427, 320, 226, 227, 323, 422, 329];
-const titleFont = "25px Roboto Mono";
-const statsFont = "17px Roboto Mono";
 const drawScaling = 2.6;
 
 const spriteCache: Record<string, HTMLImageElement> = {};
@@ -273,23 +279,18 @@ function drawSprite(
   }
 }
 
-function wrapText(
+function pushTooltipLines(
+  lines: TooltipLine[],
   text: string,
-  context: CanvasRenderingContext2D,
-  maxWidth: number,
-): string[] {
-  const result: string[] = [];
-  let currentWord = "";
-  text.split(" ").forEach((word) => {
-    if (context.measureText(currentWord + word).width < maxWidth) {
-      currentWord += (currentWord ? " " : "") + word;
-    } else {
-      if (currentWord) result.push(currentWord.trim());
-      currentWord = word;
-    }
-  });
-  if (currentWord) result.push(currentWord.trim());
-  return result;
+  special: boolean,
+) {
+  text
+    .replace(/\\n/g, "\n")
+    .split("\n")
+    .forEach((line) => {
+      const trimmed = line.trim();
+      if (trimmed) lines.push({ text: trimmed, special });
+    });
 }
 
 function render() {
@@ -494,17 +495,69 @@ function render() {
   hoveredNode.value = newHoverNode;
 
   if (props.circledNode && circledNodePos) {
-    ctx.strokeStyle = "#ad2b2b";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.arc(
-      circledNodePos.x,
-      circledNodePos.y,
-      jewelRadius.value,
-      0,
-      Math.PI * 2,
-    );
-    ctx.stroke();
+    const JEWEL_RADIUS_SPRITES: Record<
+      number,
+      { default: string; inverse: string }
+    > = {
+      1: { default: "VaalJewelCircle1", inverse: "VaalJewelCircle2" },
+      2: { default: "KaruiJewelCircle1", inverse: "KaruiJewelCircle2" },
+      3: { default: "MarakethJewelCircle1", inverse: "MarakethJewelCircle2" },
+      4: { default: "TemplarJewelCircle1", inverse: "TemplarJewelCircle2" },
+      5: {
+        default: "EternalEmpireJewelCircle1",
+        inverse: "EternalEmpireJewelCircle2",
+      },
+      6: { default: "KalguurJewelCircle1", inverse: "KalguurJewelCircle2" },
+    };
+
+    const selectedJewelKey = (props.selectedJewel || 0) as number;
+    const spriteInfo = (JEWEL_RADIUS_SPRITES[selectedJewelKey] as {
+      default: string;
+      inverse: string;
+    }) || {
+      default: "JewelCircle1",
+      inverse: "JewelCircle1Inverse",
+    };
+
+    const drawRadiusSprite = (path: string) => {
+      const sprite = inverseSprites[path];
+      if (!sprite) return;
+      const coords = sprite.coords[path];
+      if (!coords) return;
+
+      const spriteSheetUrl = resolveSpriteUrl(sprite.filename);
+      if (!(spriteSheetUrl in spriteCache)) {
+        const img = new Image();
+        img.decoding = "async";
+        spriteCache[spriteSheetUrl] = img;
+        img.src = spriteSheetUrl;
+      }
+      const sheet = spriteCache[spriteSheetUrl];
+      if (!isImageDrawable(sheet)) return;
+
+      const radiusDrawWidth = (baseJewelRadius * 2) / scaling.value;
+      const radiusDrawHeight = (baseJewelRadius * 2) / scaling.value;
+
+      ctx.save();
+      ctx.globalAlpha = 0.5;
+      ctx.drawImage(
+        sheet,
+        coords.x,
+        coords.y,
+        coords.w,
+        coords.h,
+        circledNodePos!.x - radiusDrawWidth / 2,
+        circledNodePos!.y - radiusDrawHeight / 2,
+        radiusDrawWidth,
+        radiusDrawHeight,
+      );
+      ctx.restore();
+    };
+
+    drawRadiusSprite(spriteInfo.default);
+    if (props.selectedJewel) {
+      drawRadiusSprite(spriteInfo.inverse);
+    }
   }
 
   const data = getData();
@@ -516,7 +569,6 @@ function render() {
   lastTooltipLang = currentLang;
 
   if (hoveredNode.value) {
-    const padding = 30;
     const isAlternate =
       !hoveredNode.value.isJewelSocket &&
       hoveredNodeActive &&
@@ -525,14 +577,12 @@ function render() {
       !!props.selectedConqueror;
     const cacheKey = `${hoveredNode.value.skill ?? hoveredNode.value.name ?? ""}-${props.circledNode ?? ""}-${props.seed}-${props.selectedJewel}-${props.selectedConqueror}-${currentLang}-${hoveredNodeActive}`;
     let nodeName: string;
-    let allLines: { text: string; offset: number; special: boolean }[];
-    let maxWidth: number;
+    let lines: TooltipLine[];
 
     const canUseCache = tooltipCache?.key === cacheKey && !isAlternate;
     if (canUseCache && tooltipCache) {
       nodeName = tooltipCache.data.nodeName;
-      allLines = tooltipCache.data.allLines;
-      maxWidth = tooltipCache.data.maxWidth;
+      lines = tooltipCache.data.lines;
     } else {
       nodeName = hoveredNode.value.name ?? "";
       let nodeStats: { text: string; special: boolean }[] = [];
@@ -710,7 +760,8 @@ function render() {
                       ? (passiveNamesRuById[altId] ??
                         keystoneLabel(altId, altNameEn, "ru") ??
                         altNameEn)
-                      : (keystoneLabel(altNameEn, altNameEn, "ru") ?? altNameEn);
+                      : (keystoneLabel(altNameEn, altNameEn, "ru") ??
+                        altNameEn);
                     return {
                       hasAltSkill: !!ap,
                       altId: ap?.ID,
@@ -718,7 +769,8 @@ function render() {
                       nameRu,
                       statRolls: result.StatRolls,
                       additions:
-                        result.AlternatePassiveAdditionInformations?.length ?? 0,
+                        result.AlternatePassiveAdditionInformations?.length ??
+                        0,
                     };
                   })()
                 : null,
@@ -757,10 +809,7 @@ function render() {
           /** PoB EN строки из JSON — для RU не брать их, если есть StatsKeys: иначе statNamesRu из passive_skill.json не используется. */
           const usePobEnTooltipLines =
             pobLines?.length &&
-            !(
-              currentLang === "ru" &&
-              (altSkill.StatsKeys?.length ?? 0) > 0
-            );
+            !(currentLang === "ru" && (altSkill.StatsKeys?.length ?? 0) > 0);
           if (usePobEnTooltipLines) {
             pobLines!.forEach((line) => {
               nodeStats.push({
@@ -769,34 +818,53 @@ function render() {
               });
             });
           } else {
-          altSkill.StatsKeys?.forEach((statId, i) => {
-            const stat = wasmStatRow(
-              statId,
-              `AlternatePassiveSkill id=${altId} graphSkill=${hoveredNode.value?.skill} i=${i}`,
-            );
-            const tr = inverseTranslations[stat.ID];
-            const roll = wasmStatRoll(result.StatRolls, i);
-            const lang = currentLang;
-            let text: string;
-            if (lang === "ru") {
-              const displayRoll =
-                roll != null
-                  ? displayRollForStatTemplate(stat.ID, roll)
-                  : undefined;
-              const rollArr =
-                displayRoll != null ? [displayRoll] : [];
-              const ruLine = formatRuStatLineFromWasm(
-                stat.ID,
-                stat.Text,
-                rollArr,
+            altSkill.StatsKeys?.forEach((statId, i) => {
+              const stat = wasmStatRow(
+                statId,
+                `AlternatePassiveSkill id=${altId} graphSkill=${hoveredNode.value?.skill} i=${i}`,
               );
-              if (ruLine) {
-                text = ruLine;
+              const tr = inverseTranslations[stat.ID];
+              const roll = wasmStatRoll(result.StatRolls, i);
+              const lang = currentLang;
+              let text: string;
+              if (lang === "ru") {
+                const displayRoll =
+                  roll != null
+                    ? displayRollForStatTemplate(stat.ID, roll)
+                    : undefined;
+                const rollArr = displayRoll != null ? [displayRoll] : [];
+                const ruLine = formatRuStatLineFromWasm(
+                  stat.ID,
+                  stat.Text,
+                  rollArr,
+                );
+                if (ruLine) {
+                  text = ruLine;
+                } else if (tr)
+                  text =
+                    (roll != null ? formatStats(tr, roll) : stat.ID) || stat.ID;
+                else if (stat.Text && /\{\d+\}/.test(stat.Text))
+                  text = formatStatTemplate(
+                    stat.Text,
+                    roll != null ? [roll] : [],
+                  );
+                else if (statTemplatesEnByStringId[stat.ID])
+                  text = formatStatTemplate(
+                    statTemplatesEnByStringId[stat.ID],
+                    roll != null ? [roll] : [],
+                  );
+                else {
+                  text = translateStat(statId, roll);
+                  if (text === stat.ID) text = statIdToDisplayFallback(stat.ID);
+                }
               } else if (tr)
                 text =
                   (roll != null ? formatStats(tr, roll) : stat.ID) || stat.ID;
               else if (stat.Text && /\{\d+\}/.test(stat.Text))
-                text = formatStatTemplate(stat.Text, roll != null ? [roll] : []);
+                text = formatStatTemplate(
+                  stat.Text,
+                  roll != null ? [roll] : [],
+                );
               else if (statTemplatesEnByStringId[stat.ID])
                 text = formatStatTemplate(
                   statTemplatesEnByStringId[stat.ID],
@@ -806,42 +874,28 @@ function render() {
                 text = translateStat(statId, roll);
                 if (text === stat.ID) text = statIdToDisplayFallback(stat.ID);
               }
-            } else if (tr)
-              text =
-                (roll != null ? formatStats(tr, roll) : stat.ID) || stat.ID;
-            else if (stat.Text && /\{\d+\}/.test(stat.Text))
-              text = formatStatTemplate(stat.Text, roll != null ? [roll] : []);
-            else if (statTemplatesEnByStringId[stat.ID])
-              text = formatStatTemplate(
-                statTemplatesEnByStringId[stat.ID],
-                roll != null ? [roll] : [],
-              );
-            else {
-              text = translateStat(statId, roll);
-              if (text === stat.ID) text = statIdToDisplayFallback(stat.ID);
-            }
-            const keysLenAlt = altSkill.StatsKeys?.length ?? 0;
-            const treeLinesAlt = skipSkillTreeLineFallbackForAltBody
-              ? null
-              : graphAlternateStatLinesFromSkillTree(
-                  hoveredNode.value?.skill,
-                  hoveredNode.value,
-                  lang,
-                  i,
-                  keysLenAlt,
-                );
-            if (
-              treeLinesAlt &&
-              hoveredNode.value &&
-              tooltipTextLooksLikeUnresolvedStatSlug(text, stat.ID, stat.Text)
-            ) {
-              text = treeLinesAlt;
-            }
-            nodeStats.push({
-              text,
-              special: !isHeroicTragedyNotableReplace,
+              const keysLenAlt = altSkill.StatsKeys?.length ?? 0;
+              const treeLinesAlt = skipSkillTreeLineFallbackForAltBody
+                ? null
+                : graphAlternateStatLinesFromSkillTree(
+                    hoveredNode.value?.skill,
+                    hoveredNode.value,
+                    lang,
+                    i,
+                    keysLenAlt,
+                  );
+              if (
+                treeLinesAlt &&
+                hoveredNode.value &&
+                tooltipTextLooksLikeUnresolvedStatSlug(text, stat.ID, stat.Text)
+              ) {
+                text = treeLinesAlt;
+              }
+              nodeStats.push({
+                text,
+                special: !isHeroicTragedyNotableReplace,
+              });
             });
-          });
           }
         } else if (
           result &&
@@ -867,9 +921,7 @@ function render() {
               );
               const roll = wasmStatRoll(rolls, i);
               const rollArr =
-                roll != null
-                  ? [displayRollForStatTemplate(stat.ID, roll)]
-                  : [];
+                roll != null ? [displayRollForStatTemplate(stat.ID, roll)] : [];
               let text: string;
               if (currentLang === "ru") {
                 const ruLine = formatRuStatLineFromWasm(
@@ -881,8 +933,9 @@ function render() {
                   text = ruLine;
                 } else {
                   const template =
-                    (stat.Text && /\{\d+\}/.test(stat.Text) ? stat.Text : null) ??
-                    statTemplatesEnByStringId[stat.ID];
+                    (stat.Text && /\{\d+\}/.test(stat.Text)
+                      ? stat.Text
+                      : null) ?? statTemplatesEnByStringId[stat.ID];
                   text = template
                     ? formatStatTemplate(template, rollArr)
                     : statIdToDisplayFallback(stat.ID);
@@ -923,8 +976,7 @@ function render() {
                   roll != null
                     ? displayRollForStatTemplate(stat.ID, roll)
                     : undefined;
-                const rollArr =
-                  displayRoll != null ? [displayRoll] : [];
+                const rollArr = displayRoll != null ? [displayRoll] : [];
                 const ruLine = formatRuStatLineFromWasm(
                   stat.ID,
                   stat.Text,
@@ -936,7 +988,10 @@ function render() {
                   text =
                     (roll != null ? formatStats(tr, roll) : stat.ID) || stat.ID;
                 else if (stat.Text && /\{\d+\}/.test(stat.Text))
-                  text = formatStatTemplate(stat.Text, roll != null ? [roll] : []);
+                  text = formatStatTemplate(
+                    stat.Text,
+                    roll != null ? [roll] : [],
+                  );
                 else if (statTemplatesEnByStringId[stat.ID])
                   text = formatStatTemplate(
                     statTemplatesEnByStringId[stat.ID],
@@ -950,7 +1005,10 @@ function render() {
                 text =
                   (roll != null ? formatStats(tr, roll) : stat.ID) || stat.ID;
               else if (stat.Text && /\{\d+\}/.test(stat.Text))
-                text = formatStatTemplate(stat.Text, roll != null ? [roll] : []);
+                text = formatStatTemplate(
+                  stat.Text,
+                  roll != null ? [roll] : [],
+                );
               else if (statTemplatesEnByStringId[stat.ID])
                 text = formatStatTemplate(
                   statTemplatesEnByStringId[stat.ID],
@@ -1009,71 +1067,36 @@ function render() {
         }));
       }
 
-      ctx.font = titleFont;
-      maxWidth = Math.max(ctx.measureText(nodeName).width + 50, 600);
-      ctx.font = statsFont;
-
-      allLines = [];
-      let offset = 85;
-
+      lines = [];
       if (nodeStats.length > 0) {
         nodeStats.forEach((stat) => {
-          if (allLines.length > 0) offset += 5;
-          stat.text
-            .replace(/\\n/g, "\n")
-            .split("\n")
-            .forEach((line) => {
-              if (allLines.length > 0) offset += 10;
-              wrapText(line, ctx, maxWidth - padding).forEach((l) => {
-                allLines.push({ text: l, offset, special: stat.special });
-                offset += 20;
-              });
-            });
+          pushTooltipLines(lines, stat.text, stat.special);
         });
       } else if (hoveredNode.value.isJewelSocket) {
-        allLines.push({
+        lines.push({
           text: ui("clickToSelectSocket", currentLang),
-          offset,
           special: true,
         });
-        offset += 20;
       }
 
-      tooltipCache = { key: cacheKey, data: { nodeName, allLines, maxWidth } };
+      tooltipCache = { key: cacheKey, data: { nodeName, lines } };
     }
 
-    const titleHeight = 55;
-    const contentBottom = allLines.length
-      ? allLines[allLines.length - 1].offset + 20
-      : titleHeight;
-
-    ctx.fillStyle = "rgba(75,63,24,0.9)";
-    ctx.fillRect(mousePos.value.x, mousePos.value.y, maxWidth, titleHeight);
-    ctx.fillStyle = "#ffffff";
-    ctx.font = titleFont;
-    ctx.textAlign = "center";
-    ctx.fillText(
-      nodeName,
-      mousePos.value.x + maxWidth / 2,
-      mousePos.value.y + 35,
+    tooltipContent.value = { nodeName, lines };
+    const anchor = calculateNodePos(
+      hoveredNode.value,
+      offsetX.value,
+      offsetY.value,
+      scaling.value,
     );
-    ctx.fillStyle = "rgba(0,0,0,0.8)";
-    ctx.fillRect(
-      mousePos.value.x,
-      mousePos.value.y + titleHeight,
-      maxWidth,
-      contentBottom - titleHeight,
+    const anchorX = clampTooltipAnchorX(anchor.x, w);
+    tooltipStyle.value = tooltipPlacementStyle(
+      { x: anchorX, y: anchor.y },
+      h,
     );
-    ctx.font = statsFont;
-    ctx.textAlign = "left";
-    allLines.forEach((l) => {
-      ctx.fillStyle = l.special ? "#8cf34c" : "#ffffff";
-      ctx.fillText(
-        l.text,
-        mousePos.value.x + padding / 2,
-        mousePos.value.y + l.offset,
-      );
-    });
+  } else {
+    tooltipContent.value = null;
+    tooltipStyle.value = null;
   }
 
   cursor.value = hoveredNode.value?.isJewelSocket ? "pointer" : "unset";
@@ -1205,13 +1228,23 @@ onUnmounted(() => {
       style="touch-action: none; display: block"
       @pointerdown="onPointerDown"
     />
+    <TreeTooltip
+      v-if="tooltipContent && tooltipStyle"
+      :title="tooltipContent.nodeName"
+      :lines="tooltipContent.lines"
+      :style="tooltipStyle"
+    />
   </div>
 </template>
 
 <style scoped>
 .canvas-wrap {
-  width: 100vw;
-  height: 100vh;
+  min-width: 100vw;
+  min-height: 100vh;
   overflow: hidden;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
 }
 </style>
