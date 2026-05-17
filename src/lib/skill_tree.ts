@@ -697,11 +697,8 @@ export function combineResults(
     node: number;
   }[],
   only: "notables" | "passives" | "all",
-  jewel: number,
+  _jewel: number,
 ): CombinedResult[] {
-  const allPossibleStats: Record<number, Record<string, number>> = JSON.parse(
-    getData().PossibleStats,
-  );
   const mappedStats: Record<number, number[]> = {};
   rawResults.forEach((r) => {
     const node = skillTree.nodes[r.node];
