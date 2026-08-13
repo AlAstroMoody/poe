@@ -519,7 +519,12 @@ function render() {
       inverse: "JewelCircle1Inverse",
     };
 
-    const drawRadiusSprite = (path: string) => {
+    // Как в клиенте: два слоя круга медленно вращаются в противоположные стороны.
+    const radiusSpinPeriodSec = 42;
+    const radiusAngle =
+      ((performance.now() / 1000) * Math.PI * 2) / radiusSpinPeriodSec;
+
+    const drawRadiusSprite = (path: string, spinDir: 1 | -1) => {
       const sprite = inverseSprites[path];
       if (!sprite) return;
       const coords = sprite.coords[path];
@@ -537,26 +542,30 @@ function render() {
 
       const radiusDrawWidth = (baseJewelRadius * 2) / scaling.value;
       const radiusDrawHeight = (baseJewelRadius * 2) / scaling.value;
+      const cx = circledNodePos!.x;
+      const cy = circledNodePos!.y;
 
       ctx.save();
       ctx.globalAlpha = 0.5;
+      ctx.translate(cx, cy);
+      ctx.rotate(spinDir * radiusAngle);
       ctx.drawImage(
         sheet,
         coords.x,
         coords.y,
         coords.w,
         coords.h,
-        circledNodePos!.x - radiusDrawWidth / 2,
-        circledNodePos!.y - radiusDrawHeight / 2,
+        -radiusDrawWidth / 2,
+        -radiusDrawHeight / 2,
         radiusDrawWidth,
         radiusDrawHeight,
       );
       ctx.restore();
     };
 
-    drawRadiusSprite(spriteInfo.default);
+    drawRadiusSprite(spriteInfo.default, 1);
     if (props.selectedJewel) {
-      drawRadiusSprite(spriteInfo.inverse);
+      drawRadiusSprite(spriteInfo.inverse, -1);
     }
   }
 

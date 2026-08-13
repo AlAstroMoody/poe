@@ -1,7 +1,8 @@
 {
   "source": "grindinggear/skilltree-export",
-  "fetchedFrom": "https://raw.githubusercontent.com/grindinggear/skilltree-export/master",
-  "generatedAt": "2026-03-26T16:56:50.118Z",
+  "resolvedRef": "3.29.1",
+  "fetchedFrom": "https://raw.githubusercontent.com/grindinggear/skilltree-export/3.29.1",
+  "generatedAt": "2026-08-13T05:58:55.570Z",
   "files": [
     "skilltree-export.data.json",
     "skilltree-export.alternate.json",

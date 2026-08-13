@@ -9,10 +9,10 @@
  * or see scripts/run-go-pob-data-extract.sh
  *
  * Usage:
- *   POE_GAME_VERSION=3.28.0.7 GO_POB_DATA_DIR=~/src/go-pob-data node scripts/extract-go-pob-data-local.mjs
+ *   POE_GAME_VERSION=3.29.0.7 GO_POB_DATA_DIR=~/src/go-pob-data node scripts/extract-go-pob-data-local.mjs
  *
  * Env:
- *   POE_GAME_VERSION — folder under go-pob-data/data/<this>/ (third arg to main.go), e.g. 3.28.0.7
+ *   POE_GAME_VERSION — folder under go-pob-data/data/<this>/ (third arg to main.go), e.g. 3.29.0.7
  *   GO_POB_DATA_DIR — absolute path to cloned go-pob-data (default: ../go-pob-data relative to repo root)
  */
 
@@ -73,7 +73,7 @@ function main() {
     process.argv[2] ||
     (() => {
       throw new Error(
-        'Set POE_GAME_VERSION (e.g. 3.28.0.7) — same as third argument to go-pob-data main.go',
+        'Set POE_GAME_VERSION (e.g. 3.29.0.7) — same as third argument to go-pob-data main.go',
       );
     })();
 

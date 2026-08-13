@@ -261,8 +261,8 @@ export function keystoneLabel(
 }
 
 /**
- * Описание самоцвета «как в игре»: подставляются диапазон (от min до max) и имя завоевателя.
- * jewelId 1–6, conqueror — английское имя с бэка.
+ * Описание самоцвета «как в игре»: диапазон сида ({min}–{max}) и имя завоевателя.
+ * EN — из Metadata/StatDescriptions (1–5); Kalguur (6) — по тексту мода Heroic Tragedy.
  */
 const jewelFlavorRu: Record<number, string> = {
   1: "Омыт в крови от {min} до {max} жертв во имя {conqueror}. Пассивные умения в радиусе завоеваны ваал.",
@@ -273,6 +273,15 @@ const jewelFlavorRu: Record<number, string> = {
   6: "Вспоминая о {min}–{max} славных деяниях рода {conqueror}. Пассивные умения в радиусе завоеваны калгуурами.",
 };
 
+const jewelFlavorEn: Record<number, string> = {
+  1: "Bathed in the blood of {min} to {max} sacrificed in the name of {conqueror}. Passives in radius are Conquered by the Vaal.",
+  2: "Commanded leadership over {min} to {max} warriors under {conqueror}. Passives in radius are Conquered by the Karui.",
+  3: "Denoted service of {min} to {max} dekhara in the akhara of {conqueror}. Passives in radius are Conquered by the Maraketh.",
+  4: "Carved to glorify {min} to {max} new faithful converted by High Templar {conqueror}. Passives in radius are Conquered by the Templars.",
+  5: "Commissioned {min} to {max} coins to commemorate {conqueror}. Passives in radius are Conquered by the Eternal Empire.",
+  6: "Remembrancing {min}–{max} songworthy deeds by the line of {conqueror}. Passives in radius are Conquered by the Kalguur.",
+};
+
 export function getJewelFlavorText(
   jewelId: number,
   min: number,
@@ -280,11 +289,11 @@ export function getJewelFlavorText(
   conquerorEn: string,
   lang: "ru" | "en",
 ): string {
-  if (lang !== "ru" || !jewelFlavorRu[jewelId]) {
-    return "";
-  }
-  const template = jewelFlavorRu[jewelId];
-  const conqueror = conquerorLabel(conquerorEn, "ru");
+  const templates = lang === "ru" ? jewelFlavorRu : jewelFlavorEn;
+  const template = templates[jewelId];
+  if (!template) return "";
+  const conqueror =
+    lang === "ru" ? conquerorLabel(conquerorEn, "ru") : conquerorEn;
   return template
     .replace("{min}", String(min))
     .replace("{max}", String(max))

@@ -61,7 +61,8 @@ export const loadSkillTree = async (
       if ("classStartIndex" in node) return;
       if (node.expansionJewel?.parent) return;
       if (node.isBlighted) return;
-      if (node.ascendancyName) return;
+      // Ascendant в 3.29 на дереве не актуален — не рисуем.
+      if (node.ascendancyName === "Ascendant") return;
       drawnGroups[parseInt(groupId)] = group;
       drawnNodes[parseInt(nodeId)] = node;
     });

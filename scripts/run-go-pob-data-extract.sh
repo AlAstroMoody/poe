@@ -15,8 +15,8 @@
 # Env (required):
 #   GO_POB_DATA_DIR  — path to cloned go-pob-data
 #   POE_GAME_PATH    — directory containing Bundles2 (trailing slash optional)
-#   POE_TREE_VERSION — tag from grindinggear/skilltree-export, e.g. 3.28.0 (see tree.go)
-#   POE_GAME_VERSION — output folder name, e.g. 3.28.0.7 (patch.build from client or your label)
+#   POE_TREE_VERSION — tag from grindinggear/skilltree-export, e.g. 3.29.1 (see tree.go)
+#   POE_GAME_VERSION — output folder name, e.g. 3.29.0.7 (patch.build from client or your label)
 #
 # After success:
 #   POE_GAME_VERSION=<same> npm run extract:go-pob-copy
@@ -25,8 +25,8 @@ set -euo pipefail
 
 : "${GO_POB_DATA_DIR:?Set GO_POB_DATA_DIR to your clone of go-pob-data}"
 : "${POE_GAME_PATH:?Set POE_GAME_PATH to Path of Exile install dir (with Bundles2)}"
-: "${POE_TREE_VERSION:?Set POE_TREE_VERSION e.g. 3.28.0}"
-: "${POE_GAME_VERSION:?Set POE_GAME_VERSION e.g. 3.28.0.7}"
+: "${POE_TREE_VERSION:?Set POE_TREE_VERSION e.g. 3.29.1}"
+: "${POE_GAME_VERSION:?Set POE_GAME_VERSION e.g. 3.29.0.7}"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 

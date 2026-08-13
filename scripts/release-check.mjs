@@ -77,8 +77,8 @@ function main() {
       const skilltreeMeta = readJson(skilltreeMetaPath);
       const ref = skilltreeMeta.resolvedRef;
       info.push(`skilltree-export ref: ${ref}`);
-      if (ref !== "3.28.0") {
-        warnings.push(`skilltree-export ref is ${ref}, expected 3.28.0`);
+      if (ref !== "3.29.1") {
+        warnings.push(`skilltree-export ref is ${ref}, expected 3.29.1`);
       }
     } catch {
       critical.push("Cannot parse skilltree-export.meta.json");
@@ -111,8 +111,8 @@ function main() {
       try {
         const goPobMeta = readJson(goPobMetaPath);
         info.push(`go-pob-data version: ${goPobMeta.resolvedVersion}`);
-        if (goPobMeta.resolvedVersion !== "3.28") {
-          warnings.push(`go-pob-data version is ${goPobMeta.resolvedVersion} (not 3.28)`);
+        if (goPobMeta.resolvedVersion !== "3.29") {
+          warnings.push(`go-pob-data version is ${goPobMeta.resolvedVersion} (not 3.29)`);
         }
       } catch {
         warnings.push("Cannot parse go-pob-data.meta.json");

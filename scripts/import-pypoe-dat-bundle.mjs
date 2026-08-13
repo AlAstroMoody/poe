@@ -42,6 +42,7 @@ const TABLE_MAP = {
   'AlternatePassiveSkills.dat': 'alternate_passive_skills',
   'AlternatePassiveAdditions.dat': 'alternate_passive_additions',
   'Stats.dat': 'stats',
+  'PassiveSkills.dat': 'passive_skills',
 };
 
 function usage() {

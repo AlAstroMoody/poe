@@ -1,6 +1,6 @@
 # Калькулятор вневременных самоцветов (Path of Exile 1)
 
-Веб-приложение для расчета характеристик вневременных самоцветов (Timeless Jewels) в **Path of Exile 1** (актуально для версии **3.28**). Позволяет просматривать изменения пассивных умений на дереве для любого сида и завоевателя, поддерживает поиск по статам и полную русскую локализацию.
+Веб-приложение для расчета характеристик вневременных самоцветов (Timeless Jewels) в **Path of Exile 1** (актуально для версии **3.29**). Позволяет просматривать изменения пассивных умений на дереве для любого сида и завоевателя, поддерживает поиск по статам и полную русскую локализацию.
 
 ## Основные возможности
 
@@ -36,57 +36,92 @@
 
 ## Обновление данных из игры
 
-Для работы калькулятора используются скомпилированные в бинарный формат данные. Если вы хотите обновить их напрямую из файлов игры (Content.ggpk):
+Данные калькулятора берутся из `Content.ggpk` через **PyPoE**, плюс официальный export дерева (`grindinggear/skilltree-export`). Ниже — рабочий путь для **3.29** (с учётом граблей, которые уже ловили).
 
 ### 1. Требования
 
-- **Go** (версия 1.18+) — для компиляции расчетного ядра.
-- **Python 3** и **Poetry** — для работы с инструментом экспорта PyPoE.
-- **PyPoE** — инструмент для чтения файлов игры.
+- **Node.js** + npm — скрипты проекта и фронт.
+- **Go** (1.18+) — сборка WASM.
+- **Python 3.11** + **Poetry** — PyPoE (системный 3.14 часто не подходит; удобно поставить 3.11 через [uv](https://github.com/astral-sh/uv)).
+- **PyPoE** — клон [Project-Path-of-Exile-Wiki/PyPoE](https://github.com/Project-Path-of-Exile-Wiki/PyPoE), внутри: `poetry install` (venv лучше in-project: `poetry config virtualenvs.in-project true`).
+- Установленный клиент PoE с актуальным `Content.ggpk`.
 
 ### 2. Настройка окружения
 
-Скопируйте шаблон настроек и укажите пути к папкам на вашем диске:
-
 ```bash
 cp .env.poe.example .env.poe
-# Отредактируйте .env.poe:
-# POE_GGPK_DIR - путь к папке с Path of Exile (где лежит Content.ggpk)
-# POE_PYPOE_DIR - путь к локальной копии репозитория PyPoE
-# POE_DAT_EXPORT_DIR - путь для временных файлов экспорта
+# POE_GGPK_DIR      — каталог игры (внутри Content.ggpk)
+# POE_PYPOE_DIR     — клон PyPoE
+# POE_DAT_EXPORT_DIR — временный каталог для JSON-дампов
+# POE_REPOE_DIR     — опционально, repoe-fork
+# POE_PYTHON        — опционально, путь к python3.11
 ```
 
-### 3. Запуск обновления
-
-Автоматизированный скрипт выполнит экспорт, конвертацию и подготовку данных:
+Загрузка переменных (bash и zsh):
 
 ```bash
-# Загрузка переменных окружения и запуск экспорта
+source scripts/load-poe-env.sh
+```
+
+В PyPoE один раз (или после патча игры):
+
+```bash
+cd "$POE_PYPOE_DIR"
+poetry run pypoe_schema_import -a stable
+poetry run pypoe_exporter config set version GENERATED
+poetry run pypoe_exporter config set ggpk_path "$POE_GGPK_DIR"
+poetry run pypoe_exporter setup perform
+```
+
+### 3. Важно: `.dat64` vs `.datc64`
+
+В актуальном клиенте таблицы лежат как `Data/*.datc64` (сжатые), а штатный `pypoe_exporter dat` historically дописывает суффикс и ищет **`*.dat64`**. Симптом: экспорт «успешен», но в логе `Skipping "Data/….dat64" (missing)`, bundle пустой / без нужных блоков.
+
+**Обход:** в локальном PyPoE в `PyPoE/cli/exporter/dat/handler.py` при `FileNotFoundError` для `name + "64"` повторить чтение как `name + "c64"` (fallback на `.datc64`). Без этого патча обновление из GGPK на 3.29+ не заводится.
+
+Дополнительно: `npm run import:pypoe-bundle` должен импортировать и **`PassiveSkills.dat`** (уже в `TABLE_MAP`). Иначе дерево 3.29 новее таблицы пассивов — появятся stub’ы в `prepare:wasm-data`.
+
+### 4. Экспорт из GGPK
+
+```bash
 source scripts/load-poe-env.sh
 ./scripts/export-pypoe-for-poe.sh
 ```
 
-### 4. Сборка WASM
+Скрипт пишет JSON в `POE_DAT_EXPORT_DIR` и импортирует в `data/`: Alternate*, Stats, PassiveSkills (и RU-имена альтер-пассов, если есть).
 
-После обновления данных в папке `data/`, необходимо пересобрать расчетный модуль:
+Если падает на чтении GGPK (часто Wine/PortProton / segfault):
 
 ```bash
-# Подготовка данных для встраивания в бинарный файл
-npm run prepare:wasm-data
+POE_PYPOE_DAT_SPLIT=1 ./scripts/export-pypoe-for-poe.sh
+```
 
-# Компиляция Go в WebAssembly
+Либо скопировать `Content.ggpk` на обычный диск (ext4) и указать этот каталог в `POE_GGPK_DIR`.
+
+### 5. Дерево, словари и WASM
+
+```bash
+# тег skilltree-export (по умолчанию в скрипте — 3.29.1)
+npm run fetch:skilltree-export -- 3.29.1
+npm run fetch:passive-tree-ru
+npm run build:dict
+
+npm run prepare:wasm-data
 npm run wasm:build
 ```
+
+Проверка готовности: `npm run release:check`.
 
 ---
 
 ## Дополнительные скрипты
 
-- `npm run fetch:skilltree-export` — загрузка актуального JSON дерева с официального сайта.
-- `npm run fetch:passive-tree-ru` — загрузка русской локализации для дерева.
-- `npm run build:dict` — генерация внутренних словарей для поиска.
+- `npm run fetch:skilltree-export` — JSON дерева с [skilltree-export](https://github.com/grindinggear/skilltree-export) (дефолт **3.29.1**).
+- `npm run fetch:passive-tree-ru` — русские названия нод с ru.pathofexile.com.
+- `npm run build:dict` — словари для поиска / тултипов.
 - `npm run build` — финальная сборка фронтенда.
 - `npm run deploy` — деплой на GitHub Pages.
+- `npm run release:check` — сверка meta дерева / stub’ов / числа нод.
 
 ## Лицензия
 

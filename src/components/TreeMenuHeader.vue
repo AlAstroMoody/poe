@@ -4,6 +4,7 @@ import { openTrade } from "@/lib/skill_tree";
 import { ui } from "@/lib/dict";
 import type { Lang } from "@/lib/i18n";
 import AppSelect from "./AppSelect.vue";
+import MenuBurgerButton from "./MenuBurgerButton.vue";
 
 const props = defineProps<{
   lang: Lang;
@@ -37,9 +38,15 @@ const menuBtn =
 
 <template>
   <header class="mb-4 space-y-3 border-b border-surface-border/20 pb-3">
-    <div class="flex items-start gap-3">
+    <div class="flex items-center gap-2.5">
+      <MenuBurgerButton
+        :open="true"
+        label="Collapse"
+        class="size-8"
+        @click="emit('collapse')"
+      />
       <h3
-        class="min-w-0 flex-1 text-base font-semibold leading-snug text-heading md:text-lg"
+        class="min-w-0 flex-1 text-base font-semibold leading-none text-heading md:text-lg"
       >
         {{ title }}
       </h3>
@@ -51,16 +58,6 @@ const menuBtn =
           @click="emit('update:showResults', !showResults)"
         >
           {{ showResults ? ui("config", lang) : ui("results", lang) }}
-        </button>
-        <button
-          type="button"
-          class="flex cursor-pointer flex-col justify-center gap-1 rounded-md border border-transparent p-2 text-inherit opacity-70 transition-opacity hover:border-surface-border/25 hover:bg-white/5 hover:opacity-100"
-          aria-label="Collapse"
-          @click="emit('collapse')"
-        >
-          <span class="block h-0.5 w-5 rounded bg-current" aria-hidden />
-          <span class="block h-0.5 w-5 rounded bg-current" aria-hidden />
-          <span class="block h-0.5 w-5 rounded bg-current" aria-hidden />
         </button>
       </div>
     </div>

@@ -4,6 +4,7 @@ import type { Lang } from "@/lib/i18n";
 import { ui } from "@/lib/dict";
 import SearchResultsList from "./SearchResultsList.vue";
 import TreeMenuHeader from "./TreeMenuHeader.vue";
+import MenuBurgerButton from "./MenuBurgerButton.vue";
 import SeedModePanel from "./SeedModePanel.vue";
 import StatsModePanel from "./StatsModePanel.vue";
 import { useLeagueData } from "@/composables/useLeagueData";
@@ -333,16 +334,12 @@ watch(addStatValue, (v) => {
       </div>
     </div>
 
-    <button
+    <MenuBurgerButton
       v-else
-      type="button"
-      class="absolute top-0 left-0 z-40 flex cursor-pointer flex-col justify-center gap-1 rounded-br-xl border border-surface-border/30 bg-surface/95 p-4 pt-5 text-heading shadow-surface backdrop-blur-md transition-colors hover:bg-surface"
-      aria-label="Open menu"
+      :open="false"
+      label="Open menu"
+      class="absolute top-0 left-0 z-40 rounded-none rounded-br-xl border-surface-border/30 bg-surface/95 px-3.5 py-3.5 shadow-surface backdrop-blur-md hover:bg-surface"
       @click="collapsed = false"
-    >
-      <span class="block h-0.5 w-5 rounded bg-current" aria-hidden />
-      <span class="block h-0.5 w-5 rounded bg-current" aria-hidden />
-      <span class="block h-0.5 w-5 rounded bg-current" aria-hidden />
-    </button>
+    />
   </div>
 </template>

@@ -4,8 +4,8 @@
  *
  * Usage:
  *   node scripts/fetch-go-pob-data.mjs                # tries default fallback versions
- *   node scripts/fetch-go-pob-data.mjs 3.28          # try 3.28 then fallback list
- *   node scripts/fetch-go-pob-data.mjs 3.28,3.27     # explicit ordered list
+ *   node scripts/fetch-go-pob-data.mjs 3.29          # try 3.29 then fallback list
+ *   node scripts/fetch-go-pob-data.mjs 3.29,3.28     # explicit ordered list
  */
 
 import { mkdirSync, writeFileSync } from 'fs';
@@ -16,7 +16,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
 const OUT = join(ROOT, 'data');
 
-const fallbackVersions = ['3.28', '3.27', '3.26', '3.25', '3.24', '3.23', '3.22', '3.21'];
+const fallbackVersions = ['3.29', '3.28', '3.27', '3.26', '3.25', '3.24', '3.23', '3.22'];
 const arg = process.argv[2];
 const requested = arg
   ? arg.split(',').map((s) => s.trim()).filter(Boolean)

@@ -3,7 +3,7 @@
  * Fetch official PoE1 passive tree exports from GGG.
  * Source: https://github.com/grindinggear/skilltree-export
  *
- * By default, uses 3.28.0 (latest known complete tree export).
+ * By default, uses 3.29.1 (latest known complete tree export).
  * You can override ref: node scripts/fetch-skilltree-export.mjs <ref>
  */
 
@@ -20,7 +20,7 @@ const FILES = ['data.json', 'alternate.json', 'ruthless.json', 'ruthless-alterna
 function resolveRef() {
   const argRef = process.argv[2]?.trim();
   if (argRef) return argRef;
-  return '3.28.0';
+  return '3.29.1';
 }
 
 async function fetchText(url) {
