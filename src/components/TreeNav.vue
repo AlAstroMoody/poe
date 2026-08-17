@@ -38,31 +38,39 @@ function setLang(value: Lang) {
 
     <nav
       v-show="open"
-      class="flex flex-col gap-3 rounded-l-lg border border-r-0 border-heading/30 bg-black/75 px-3 py-3 backdrop-blur-sm"
-      aria-label="Навигация и язык"
+      class="flex w-fit flex-col gap-3 rounded-l-lg border border-r-0 border-heading/30 bg-black/75 px-3 py-3 backdrop-blur-sm"
+      :aria-label="ui('navAria', lang)"
     >
       <RouterLink
         to="/"
         class="text-heading text-sm no-underline opacity-80 hover:opacity-100"
       >
-        Главная
+        {{ ui("navHome", lang) }}
       </RouterLink>
       <RouterLink
         to="/instruction"
         class="text-heading text-sm no-underline opacity-80 hover:opacity-100"
       >
-        Инструкция
+        {{ ui("navInstruction", lang) }}
       </RouterLink>
       <RouterLink
         to="/faq"
         class="text-heading text-sm no-underline opacity-80 hover:opacity-100"
       >
-        Чаво
+        {{ ui("navFaq", lang) }}
       </RouterLink>
+      <a
+        href="https://github.com/AlAstroMoody/poe/issues"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="text-heading text-sm leading-snug no-underline opacity-80 hover:opacity-100"
+      >
+        {{ ui("issues", lang) }}
+      </a>
       <div
         class="mt-1 border-t border-heading/20 pt-2"
         role="group"
-        aria-label="Язык"
+        :aria-label="ui('langAria', lang)"
       >
         <button
           type="button"

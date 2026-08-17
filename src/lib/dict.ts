@@ -395,6 +395,12 @@ export const uiEn = {
   resetNodes: "Reset nodes",
   showNav: "Show navigation",
   hideNav: "Hide navigation",
+  navHome: "Home",
+  navInstruction: "Instructions",
+  navFaq: "FAQ",
+  issues: "Report a bug",
+  navAria: "Navigation and language",
+  langAria: "Language",
 } as const;
 
 export const uiRu: Record<keyof typeof uiEn, string> = {
@@ -443,6 +449,12 @@ export const uiRu: Record<keyof typeof uiEn, string> = {
   resetNodes: "Сбросить ноды",
   showNav: "Показать навигацию",
   hideNav: "Скрыть навигацию",
+  navHome: "Главная",
+  navInstruction: "Инструкция",
+  navFaq: "Чаво",
+  issues: "Сообщить об ошибке",
+  navAria: "Навигация и язык",
+  langAria: "Язык",
 };
 
 export function ui(key: keyof typeof uiEn, lang: "ru" | "en"): string {
