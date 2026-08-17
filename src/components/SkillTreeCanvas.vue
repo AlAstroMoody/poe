@@ -362,6 +362,7 @@ function strokeAbyssConnector(
   ctx.restore();
 }
 
+/** Точки дуги как у ctx.arc(..., a0, a1) — по часовой, с учётом перехода через 0. */
 function sampleArcPoints(
   cx: number,
   cy: number,
@@ -370,12 +371,15 @@ function sampleArcPoints(
   a1: number,
   stepPx: number,
 ): Point[] {
-  const arcLen = Math.abs(a1 - a0) * radius;
+  let delta = a1 - a0;
+  while (delta < 0) delta += Math.PI * 2;
+  while (delta >= Math.PI * 2) delta -= Math.PI * 2;
+  const arcLen = delta * radius;
   const n = Math.max(2, Math.ceil(arcLen / Math.max(2, stepPx)));
   const pts: Point[] = [];
   for (let i = 0; i <= n; i++) {
     const t = i / n;
-    const a = a0 + (a1 - a0) * t;
+    const a = a0 + delta * t;
     pts.push({ x: cx + Math.cos(a) * radius, y: cy + Math.sin(a) * radius });
   }
   return pts;
