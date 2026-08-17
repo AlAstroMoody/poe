@@ -7,6 +7,7 @@ import {
   skillTree,
   type SortOrder,
 } from "@/lib/skill_tree";
+import { abyssAffectedEpoch } from "@/lib/abyssAffectedNodes";
 import { calculateTimelessForTreeSkill } from "@/lib/timelessJewelCalculate";
 import { getJewelFlavorLines } from "@/lib/dict";
 import type { Lang } from "@/lib/i18n";
@@ -18,11 +19,14 @@ export function useSeedPreview(options: {
   selectedConqueror: MaybeRefOrGetter<string>;
   seed: MaybeRefOrGetter<number>;
   highlighted: MaybeRefOrGetter<number[]>;
+  classStartIndex?: MaybeRefOrGetter<number>;
+  ascendancyName?: MaybeRefOrGetter<string>;
 }) {
   const sortOrder = ref<SortOrder>("count");
   const data = getData();
 
   const seedResults = computed(() => {
+    void abyssAffectedEpoch.value;
     const seed = toValue(options.seed);
     const selectedJewel = toValue(options.selectedJewel);
     const selectedConqueror = toValue(options.selectedConqueror);
@@ -34,9 +38,12 @@ export function useSeedPreview(options: {
     const node = skillTree.nodes[circledNode];
     if (!node) return [];
 
-    const affectedNodes = getAffectedNodes(node).filter(
-      (n) => !n.isJewelSocket && !n.isMastery,
-    );
+    const affectedNodes = getAffectedNodes(node, {
+      jewelType: selectedJewel,
+      seed,
+      classStartIndex: toValue(options.classStartIndex ?? 0),
+      ascendancyName: toValue(options.ascendancyName ?? ""),
+    }).filter((n) => !n.isJewelSocket && !n.isMastery);
 
     return affectedNodes
       .filter((n) => n.skill != null && data.TreeToPassive[n.skill])
@@ -47,6 +54,7 @@ export function useSeedPreview(options: {
           seed,
           selectedJewel,
           selectedConqueror,
+          circledNode,
         ),
       }))
       .filter(

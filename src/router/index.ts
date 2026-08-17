@@ -1,6 +1,6 @@
 import { createRouter, createWebHashHistory } from "vue-router";
 
-const SITE_TITLE = "Вневременные самоцветы";
+const SITE_TITLE = "Вневременные самоцветы и Бездна";
 
 const router = createRouter({
   history: createWebHashHistory(import.meta.env.BASE_URL),
@@ -9,13 +9,15 @@ const router = createRouter({
       path: "/",
       name: "home",
       component: () => import("@/views/HomeView.vue"),
-      meta: { title: `${SITE_TITLE} — калькулятор Path of Exile` },
+      meta: {
+        title: `${SITE_TITLE} 3.29 — калькулятор Path of Exile`,
+      },
     },
     {
       path: "/tree",
       name: "tree",
       component: () => import("@/views/TreeView.vue"),
-      meta: { title: "Дерево навыков" },
+      meta: { title: "Дерево навыков — легион и личи" },
     },
     {
       path: "/instruction",

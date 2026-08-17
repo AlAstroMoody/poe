@@ -9,6 +9,12 @@ const (
 	MilitantFaith
 	ElegantHubris
 	HeroicTragedy
+	// Abyss eye jewels (AlternateTreeVersions 7–11). JewelType == tree version index.
+	FesteringVengeance
+	ExtinguishingGrasp
+	BalefulDominion
+	DestructiveAspiration
+	ReclaimedMalevolence
 )
 
 func (t JewelType) String() string {
@@ -25,6 +31,16 @@ func (t JewelType) String() string {
 		return "Elegant Hubris"
 	case HeroicTragedy:
 		return "Heroic Tragedy"
+	case FesteringVengeance:
+		return "Festering Vengeance"
+	case ExtinguishingGrasp:
+		return "Extinguishing Grasp"
+	case BalefulDominion:
+		return "Baleful Dominion"
+	case DestructiveAspiration:
+		return "Destructive Aspiration"
+	case ReclaimedMalevolence:
+		return "Reclaimed Malevolence"
 	default:
 		return "N/A"
 	}
@@ -62,6 +78,13 @@ const (
 	BlackScytheTraining  = Conqueror("Black Scythe Training")
 	CelestialMathematics = Conqueror("Celestial Mathematics")
 	TheUnbreakingCircle  = Conqueror("The Unbreaking Circle")
+
+	// Abyss liches (одна линия на самоцвет; keystone Unknown8/9 = 0)
+	Tecrod  = Conqueror("Tecrod")
+	Ulaman  = Conqueror("Ulaman")
+	Kurgal  = Conqueror("Kurgal")
+	Amanamu = Conqueror("Amanamu")
+	Zorath  = Conqueror("Zorath")
 )
 
 var TimelessJewelConquerors = map[JewelType]map[Conqueror]*TimelessJewelConqueror{
@@ -169,6 +192,36 @@ var TimelessJewelConquerors = map[JewelType]map[Conqueror]*TimelessJewelConquero
 			Version: 0,
 		},
 	},
+	FesteringVengeance: {
+		Tecrod: &TimelessJewelConqueror{
+			Index:   0,
+			Version: 0,
+		},
+	},
+	ExtinguishingGrasp: {
+		Ulaman: &TimelessJewelConqueror{
+			Index:   0,
+			Version: 0,
+		},
+	},
+	BalefulDominion: {
+		Kurgal: &TimelessJewelConqueror{
+			Index:   0,
+			Version: 0,
+		},
+	},
+	DestructiveAspiration: {
+		Amanamu: &TimelessJewelConqueror{
+			Index:   0,
+			Version: 0,
+		},
+	},
+	ReclaimedMalevolence: {
+		Zorath: &TimelessJewelConqueror{
+			Index:   0,
+			Version: 0,
+		},
+	},
 }
 
 type Range struct {
@@ -200,6 +253,26 @@ var TimelessJewelSeedRanges = map[JewelType]Range{
 		Special: true,
 	},
 	HeroicTragedy: {
+		Min: 100,
+		Max: 8000,
+	},
+	FesteringVengeance: {
+		Min: 100,
+		Max: 8000,
+	},
+	ExtinguishingGrasp: {
+		Min: 100,
+		Max: 8000,
+	},
+	BalefulDominion: {
+		Min: 100,
+		Max: 8000,
+	},
+	DestructiveAspiration: {
+		Min: 100,
+		Max: 8000,
+	},
+	ReclaimedMalevolence: {
 		Min: 100,
 		Max: 8000,
 	},

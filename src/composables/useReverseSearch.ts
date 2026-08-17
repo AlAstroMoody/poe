@@ -13,6 +13,8 @@ export function useReverseSearch(options: {
   selectedJewel: MaybeRefOrGetter<number>;
   selectedConqueror: MaybeRefOrGetter<string>;
   disabled: MaybeRefOrGetter<number[]>;
+  classStartIndex?: MaybeRefOrGetter<number>;
+  ascendancyName?: MaybeRefOrGetter<string>;
 }) {
   const data = getData();
 
@@ -36,13 +38,15 @@ export function useReverseSearch(options: {
       return;
     }
 
-    const affectedNodes = getAffectedNodes(node).filter(
-      (n) => !n.isJewelSocket && !n.isMastery,
-    );
-
     const disabled = toValue(options.disabled);
     const selectedJewel = toValue(options.selectedJewel);
     const selectedConqueror = toValue(options.selectedConqueror);
+
+    const affectedNodes = getAffectedNodes(node, {
+      jewelType: selectedJewel,
+      classStartIndex: toValue(options.classStartIndex ?? 0),
+      ascendancyName: toValue(options.ascendancyName ?? ""),
+    }).filter((n) => !n.isJewelSocket && !n.isMastery);
 
     const config = {
       jewel: selectedJewel,

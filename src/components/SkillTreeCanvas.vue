@@ -9,6 +9,7 @@ import {
   drawnGroups,
   drawnNodes,
   formatStats,
+  getAffectedNodes,
   inverseSprites,
   inverseSpritesActive,
   inverseTranslations,
@@ -18,7 +19,18 @@ import {
   translateStat,
   translatePassiveSkillName,
   displayRollForStatTemplate,
+  coerceSignedStatRoll,
 } from "@/lib/skill_tree";
+import {
+  abyssAffectedEpoch,
+  isAbyssEyeJewel,
+  isAbyssSpecialJewel,
+  isAbyssTimelessJewel,
+  normalizeAlternatePassiveSkill,
+  preloadAbyssSocket,
+  preloadZorathTable,
+  usesNonCircularAbyssArea,
+} from "@/lib/abyssAffectedNodes";
 import { getData } from "@/services/wasmDataService";
 import { getLanguage } from "@/lib/i18n";
 import {
@@ -36,11 +48,11 @@ import {
   extractRollsFromDisplayString,
   statIdByRuName,
   ui,
+  stripStatDescriptionMarkup,
 } from "@/lib/dict";
 import { BASE_DATA_URL } from "@/config";
 import { isTreeDebugEnabled, treeDebugLog } from "@/lib/treeDebug";
 import {
-  alternateLookupTraceForTreeSkill,
   calculateTimelessForTreeSkill,
   getPassiveRowByTreeSkill,
   isPassiveSkillStub,
@@ -64,6 +76,8 @@ const props = withDefaults(
     highlighted?: number[];
     disabled?: number[];
     highlightJewels?: boolean;
+    classStartIndex?: number;
+    ascendancyName?: string;
     /** Текущий язык (если передан — тултип пересчитывается при смене без перезагрузки). */
     lang?: "ru" | "en";
   }>(),
@@ -181,12 +195,8 @@ function wasmStatRow(
 /**
  * Go/WASM отдаёт роллы как uint32; отрицательные значения (напр. −25 для self_damaging_ailment_duration_+%)
  * приходят как 4294967271 — без приведения шаблон показывает мусор.
+ * coerceSignedStatRoll — из @/lib/skill_tree (общий с translateStat / поиском).
  */
-function coerceSignedStatRoll(raw: number): number {
-  if (!Number.isFinite(raw)) return raw;
-  if (raw >= 2147483648 && raw <= 4294967295) return raw - 4294967296;
-  return raw;
-}
 
 /** Роллы из WASM: map uint32→uint32 может прийти с числовыми или строковыми ключами. */
 function wasmStatRoll(
@@ -204,8 +214,56 @@ const jewelRadius = computed(() => baseJewelRadius / scaling.value);
 const startGroups = [427, 320, 226, 227, 323, 422, 329];
 const drawScaling = 2.6;
 
+const affectedSkillIdSet = computed(() => {
+  void abyssAffectedEpoch.value;
+  const socketId = props.circledNode;
+  const jewel = props.selectedJewel ?? 0;
+  const seed = props.seed ?? 0;
+  if (!socketId || !skillTree?.nodes[socketId]) return null;
+  if (usesNonCircularAbyssArea(jewel)) {
+    if (isAbyssEyeJewel(jewel) && seed > 0) {
+      const nodes = getAffectedNodes(skillTree.nodes[socketId], {
+        jewelType: jewel,
+        seed,
+      });
+      return new Set(
+        nodes.map((n) => n.skill).filter((id): id is number => id != null),
+      );
+    }
+    if (isAbyssSpecialJewel(jewel)) {
+      const nodes = getAffectedNodes(skillTree.nodes[socketId], {
+        jewelType: jewel,
+        seed,
+        classStartIndex: props.classStartIndex ?? 0,
+        ascendancyName: props.ascendancyName,
+      });
+      return new Set(
+        nodes.map((n) => n.skill).filter((id): id is number => id != null),
+      );
+    }
+    return new Set<number>();
+  }
+  return null;
+});
+
+watch(
+  () => [props.circledNode, props.selectedJewel] as const,
+  ([socketId, jewel]) => {
+    if (socketId && isAbyssEyeJewel(jewel ?? 0)) {
+      void preloadAbyssSocket(socketId, jewel ?? 10);
+    }
+    if (isAbyssSpecialJewel(jewel ?? 0)) {
+      void preloadZorathTable();
+    }
+  },
+  { immediate: true },
+);
+
 const spriteCache: Record<string, HTMLImageElement> = {};
 const spriteCacheActive: Record<string, HTMLImageElement> = {};
+
+const ABYSS_LINE_CONNECTOR_PATH = "abyss-connectors/AbyssLineConnectorActive.png";
+let abyssLineConnectorImg: HTMLImageElement | null = null;
 
 function resolveSpriteUrl(filename: string): string {
   if (filename.startsWith("http")) return filename;
@@ -216,6 +274,111 @@ function resolveSpriteUrl(filename: string): string {
 /** Без этого drawImage бросает InvalidStateError для ещё грузящихся или битых картинок. */
 function isImageDrawable(img: HTMLImageElement): boolean {
   return img.complete && img.naturalWidth > 0;
+}
+
+function abyssConnectorUrl(): string {
+  const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+  return `${base}/${ABYSS_LINE_CONNECTOR_PATH}`;
+}
+
+function getAbyssLineConnectorImg(): HTMLImageElement {
+  if (!abyssLineConnectorImg) {
+    const img = new Image();
+    img.decoding = "async";
+    img.src = abyssConnectorUrl();
+    abyssLineConnectorImg = img;
+  }
+  return abyssLineConnectorImg;
+}
+
+/** Текстурированный Abyss-коннектор вдоль ломаной (как в клиенте / pobb). */
+function strokeAbyssConnector(
+  ctx: CanvasRenderingContext2D,
+  points: Point[],
+  thickness: number,
+) {
+  const img = getAbyssLineConnectorImg();
+  if (!isImageDrawable(img) || points.length < 2) {
+    ctx.beginPath();
+    ctx.moveTo(points[0]!.x, points[0]!.y);
+    for (let i = 1; i < points.length; i++) {
+      ctx.lineTo(points[i]!.x, points[i]!.y);
+    }
+    ctx.lineWidth = thickness;
+    ctx.strokeStyle = "#9ef000";
+    ctx.shadowColor = "#7cff00";
+    ctx.shadowBlur = thickness * 1.2;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    return;
+  }
+
+  const texW = img.naturalWidth;
+  const texH = img.naturalHeight;
+  const scale = thickness / texH;
+  let texOffset = 0;
+
+  ctx.save();
+  ctx.shadowColor = "rgba(124, 255, 0, 0.55)";
+  ctx.shadowBlur = thickness * 1.1;
+
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[i]!;
+    const p1 = points[i + 1]!;
+    const dx = p1.x - p0.x;
+    const dy = p1.y - p0.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 0.5) continue;
+
+    const angle = Math.atan2(dy, dx);
+    ctx.save();
+    ctx.translate(p0.x, p0.y);
+    ctx.rotate(angle);
+
+    let drawn = 0;
+    while (drawn < len - 0.01) {
+      const sx = texOffset % texW;
+      const srcAvail = texW - sx;
+      const destAvail = len - drawn;
+      const destTake = Math.min(destAvail, srcAvail * scale);
+      const srcTake = destTake / scale;
+      ctx.drawImage(
+        img,
+        sx,
+        0,
+        srcTake,
+        texH,
+        drawn,
+        -thickness / 2,
+        destTake,
+        thickness,
+      );
+      drawn += destTake;
+      texOffset += srcTake;
+    }
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
+function sampleArcPoints(
+  cx: number,
+  cy: number,
+  radius: number,
+  a0: number,
+  a1: number,
+  stepPx: number,
+): Point[] {
+  const arcLen = Math.abs(a1 - a0) * radius;
+  const n = Math.max(2, Math.ceil(arcLen / Math.max(2, stepPx)));
+  const pts: Point[] = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    const a = a0 + (a1 - a0) * t;
+    pts.push({ x: cx + Math.cos(a) * radius, y: cy + Math.sin(a) * radius });
+  }
+  return pts;
 }
 
 function drawSprite(
@@ -288,7 +451,7 @@ function pushTooltipLines(
     .replace(/\\n/g, "\n")
     .split("\n")
     .forEach((line) => {
-      const trimmed = line.trim();
+      const trimmed = stripStatDescriptionMarkup(line).trim();
       if (trimmed) lines.push({ text: trimmed, special });
     });
 }
@@ -302,13 +465,15 @@ function render() {
 
   const w = width.value;
   const h = height.value;
-  const start = performance.now();
 
   ctx.clearRect(0, 0, w, h);
   ctx.fillStyle = "#080c11";
   ctx.fillRect(0, 0, w, h);
 
   const connected: Record<string, boolean> = {};
+  const abyssSetForEdges = affectedSkillIdSet.value;
+  if (abyssSetForEdges?.size) getAbyssLineConnectorImg();
+
   Object.keys(drawnGroups).forEach((groupId) => {
     const group = drawnGroups[Number(groupId)];
     const groupPos = toCanvasCoords(
@@ -359,10 +524,31 @@ function render() {
         scaling.value,
       );
 
-      ctx.beginPath();
+      const abyssSet = affectedSkillIdSet.value;
+      const isAbyssEdge =
+        !!abyssSet &&
+        node.skill != null &&
+        targetNode.skill != null &&
+        abyssSet.has(node.skill) &&
+        abyssSet.has(targetNode.skill);
+
+      const lineWidth = 6 / scaling.value;
+
       if (node.group !== targetNode.group || node.orbit !== targetNode.orbit) {
-        ctx.moveTo(rotatedPos.x, rotatedPos.y);
-        ctx.lineTo(targetRotatedPos.x, targetRotatedPos.y);
+        if (isAbyssEdge) {
+          strokeAbyssConnector(
+            ctx,
+            [rotatedPos, targetRotatedPos],
+            lineWidth * 2,
+          );
+        } else {
+          ctx.beginPath();
+          ctx.moveTo(rotatedPos.x, rotatedPos.y);
+          ctx.lineTo(targetRotatedPos.x, targetRotatedPos.y);
+          ctx.lineWidth = lineWidth;
+          ctx.strokeStyle = "#524518";
+          ctx.stroke();
+        }
       } else {
         let a = Math.PI / 180 - (Math.PI / 180) * angle;
         let b = Math.PI / 180 - (Math.PI / 180) * targetAngle;
@@ -379,17 +565,29 @@ function render() {
           offsetY.value,
           scaling.value,
         );
-        ctx.arc(
-          groupPos.x,
-          groupPos.y,
-          skillTree.constants.orbitRadii[node.orbit!] / scaling.value + 1,
-          finalA,
-          finalB,
-        );
+        const radius =
+          skillTree.constants.orbitRadii[node.orbit!] / scaling.value + 1;
+        if (isAbyssEdge) {
+          strokeAbyssConnector(
+            ctx,
+            sampleArcPoints(
+              groupPos.x,
+              groupPos.y,
+              radius,
+              finalA,
+              finalB,
+              4,
+            ),
+            lineWidth * 2,
+          );
+        } else {
+          ctx.beginPath();
+          ctx.arc(groupPos.x, groupPos.y, radius, finalA, finalB);
+          ctx.lineWidth = lineWidth;
+          ctx.strokeStyle = "#524518";
+          ctx.stroke();
+        }
       }
-      ctx.lineWidth = 6 / scaling.value;
-      ctx.strokeStyle = "#524518";
-      ctx.stroke();
     });
   });
 
@@ -418,12 +616,16 @@ function render() {
     let touchDistance = 0;
 
     let active = false;
-    if (
+    const abyssSet = affectedSkillIdSet.value;
+    if (abyssSet) {
+      active = node.skill != null && abyssSet.has(node.skill);
+    } else if (
       props.circledNode &&
       circledNodePos &&
       distance(rotatedPos, circledNodePos) < jewelRadius.value
-    )
+    ) {
       active = true;
+    }
     if (node.skill != null && props.disabled?.indexOf(node.skill) >= 0)
       active = false;
 
@@ -511,6 +713,8 @@ function render() {
     };
 
     const selectedJewelKey = (props.selectedJewel || 0) as number;
+    // Abyss eyes have no circular radius art in game.
+    if (!usesNonCircularAbyssArea(selectedJewelKey)) {
     const spriteInfo = (JEWEL_RADIUS_SPRITES[selectedJewelKey] as {
       default: string;
       inverse: string;
@@ -567,6 +771,7 @@ function render() {
     if (props.selectedJewel) {
       drawRadiusSprite(spriteInfo.inverse, -1);
     }
+    }
   }
 
   const data = getData();
@@ -578,13 +783,16 @@ function render() {
   lastTooltipLang = currentLang;
 
   if (hoveredNode.value) {
+    const jewelType = props.selectedJewel ?? 0;
+    const isAbyssJewel =
+      isAbyssEyeJewel(jewelType) || isAbyssSpecialJewel(jewelType);
     const isAlternate =
       !hoveredNode.value.isJewelSocket &&
       hoveredNodeActive &&
       !!props.seed &&
       !!props.selectedJewel &&
-      !!props.selectedConqueror;
-    const cacheKey = `${hoveredNode.value.skill ?? hoveredNode.value.name ?? ""}-${props.circledNode ?? ""}-${props.seed}-${props.selectedJewel}-${props.selectedConqueror}-${currentLang}-${hoveredNodeActive}`;
+      (!!props.selectedConqueror || isAbyssJewel);
+    const cacheKey = `${hoveredNode.value.skill ?? hoveredNode.value.name ?? ""}-${props.circledNode ?? ""}-${props.seed}-${props.selectedJewel}-${props.selectedConqueror}-${props.classStartIndex ?? ""}-${props.ascendancyName ?? ""}-${currentLang}-${hoveredNodeActive}`;
     let nodeName: string;
     let lines: TooltipLine[];
 
@@ -630,8 +838,12 @@ function render() {
       }
 
       // Glorious Vanity (1) и Elegant Hubris (5) полностью заменяют описание ноды; кистоуны под самоцветом тоже только альтернатива, остальные ноды могут получать дополнение.
+      // Abyss eyes (7–10): мелкие — полная замена, крупные — только additions (без AlternatePassiveSkill).
+      // Zorath (11): ascendancy notable — полная замена APS; крупные на пути — additions.
       const isReplaceOnlyJewel =
         props.selectedJewel === 1 || props.selectedJewel === 5;
+      const isAbyssEye = isAbyssTimelessJewel(jewelType);
+      const isAbyssSpecial = isAbyssSpecialJewel(jewelType);
       const isKeystoneUnderJewel =
         isAlternate && !!hoveredNode.value?.isKeystone;
       /** Heroic Tragedy (6): только нотаблы полностью меняют текст; мелкие — база + дополнения как у Lethal Pride. */
@@ -639,9 +851,15 @@ function render() {
         isAlternate &&
         props.selectedJewel === 6 &&
         !!hoveredNode.value?.isNotable;
+      /** Zorath ascendancy pick: APS replace (не «notable + additions» как у глаз). */
+      const isZorathAscendancyReplace =
+        isAlternate &&
+        isAbyssSpecial &&
+        !!hoveredNode.value?.ascendancyName;
       const needOriginalStats =
         hoveredNode.value.skill != null &&
         hoveredNode.value.stats?.length &&
+        !isZorathAscendancyReplace &&
         (nodeStats.length === 0 ||
           (isAlternate &&
             !isReplaceOnlyJewel &&
@@ -730,7 +948,7 @@ function render() {
         isAlternate &&
         props.seed &&
         props.selectedJewel &&
-        props.selectedConqueror
+        (props.selectedConqueror || isAbyssJewel)
       ) {
         const result =
           hoveredNode.value.skill != null
@@ -738,82 +956,136 @@ function render() {
                 hoveredNode.value.skill,
                 props.seed,
                 props.selectedJewel,
-                props.selectedConqueror,
+                props.selectedConqueror || "Zorath",
+                props.circledNode,
               )
             : null;
 
         if (isTreeDebugEnabled() && hoveredNode.value.skill != null) {
-          const dbgKey = `${newHoverTreeNodeId ?? "?"}-${hoveredNode.value.skill}-${props.circledNode}-${props.seed}-${props.selectedJewel}-${props.selectedConqueror}-${currentLang}-${hoveredNodeActive}`;
+          const dbgKey = `${newHoverTreeNodeId ?? "?"}-${hoveredNode.value.skill}-${props.circledNode}-${props.seed}-${props.selectedJewel}-${props.selectedConqueror}-${props.classStartIndex ?? ""}-${props.ascendancyName ?? ""}-${currentLang}-${hoveredNodeActive}`;
           if (dbgKey !== lastAltLogKey) {
             lastAltLogKey = dbgKey;
+            const ap = normalizeAlternatePassiveSkill(
+              result?.AlternatePassiveSkill,
+            );
+            const additions =
+              result?.AlternatePassiveAdditionInformations ?? [];
+            const statDebug: {
+              source: string;
+              statIndex: number;
+              stringId: string;
+              wasmText: string;
+              roll: number | undefined;
+              ruLine: string | null;
+              dictHasCyrillic: boolean | null;
+            }[] = [];
+            const pushStatDebug = (
+              source: string,
+              statId: number,
+              roll: number | undefined,
+            ) => {
+              const stat = wasmStatRow(statId, `debug ${source}`);
+              const rollArr =
+                roll != null
+                  ? [displayRollForStatTemplate(stat.ID, roll)]
+                  : [];
+              const ruLine = formatRuStatLineFromWasm(
+                stat.ID,
+                stat.Text,
+                rollArr,
+              );
+              const fromDict = formatRuStatLineFromWasm(stat.ID, "", []);
+              statDebug.push({
+                source,
+                statIndex: statId,
+                stringId: stat.ID,
+                wasmText: stat.Text,
+                roll,
+                ruLine: ruLine ?? null,
+                dictHasCyrillic: fromDict
+                  ? /[А-Яа-яЁё]/.test(fromDict)
+                  : null,
+              });
+            };
+            ap?.StatsKeys?.forEach((statId, i) => {
+              pushStatDebug(
+                "replace",
+                statId,
+                wasmStatRoll(result?.StatRolls, i),
+              );
+            });
+            additions.forEach((info, ai) => {
+              info.AlternatePassiveAddition?.StatsKeys?.forEach((statId, i) => {
+                pushStatDebug(
+                  `addition[${ai}]`,
+                  statId,
+                  wasmStatRoll(info.StatRolls, i),
+                );
+              });
+            });
             treeDebugLog("alternate", {
               treeNodeId: newHoverTreeNodeId,
               skill: hoveredNode.value.skill,
               seed: props.seed,
               jewel: props.selectedJewel,
               conqueror: props.selectedConqueror,
-              passiveIndex: treeEntry?.Index,
-              trace: alternateLookupTraceForTreeSkill(
-                hoveredNode.value.skill,
-                props.seed,
-                props.selectedJewel,
-                props.selectedConqueror,
-              ),
-              calculate: result
-                ? (() => {
-                    const ap = result.AlternatePassiveSkill;
-                    const altId = ap?.ID ?? "";
-                    const altNameEn = ap?.Name ?? "";
-                    /** Как в тултипе при RU: словарь id → RU, иначе keystoneLabel. altName в логе — всегда EN из WASM. */
-                    const nameRu = altId
-                      ? (passiveNamesRuById[altId] ??
-                        keystoneLabel(altId, altNameEn, "ru") ??
-                        altNameEn)
-                      : (keystoneLabel(altNameEn, altNameEn, "ru") ??
-                        altNameEn);
-                    return {
-                      hasAltSkill: !!ap,
-                      altId: ap?.ID,
-                      altName: altNameEn,
-                      nameRu,
-                      statRolls: result.StatRolls,
-                      additions:
-                        result.AlternatePassiveAdditionInformations?.length ??
-                        0,
-                    };
-                  })()
-                : null,
+              isAbyssEye,
+              isZorathAscendancyReplace,
+              hasReplace: !!ap,
+              altId: ap?.ID,
+              altName: ap?.Name,
+              additionCount: additions.length,
+              stats: statDebug,
             });
           }
         }
 
-        const altSkill = result?.AlternatePassiveSkill;
+        const altSkill = normalizeAlternatePassiveSkill(
+          result?.AlternatePassiveSkill,
+        );
+        // If LUT/WASM gave an id but empty StatsKeys, fill from known Zorath APS.
+        if (
+          altSkill &&
+          !(altSkill.StatsKeys?.length) &&
+          altSkill.ID?.startsWith("abyss_special_ascendancy_notable_")
+        ) {
+          const byId: Record<string, number[]> = {
+            abyss_special_ascendancy_notable_1: [23253],
+            abyss_special_ascendancy_notable_2: [23254],
+            abyss_special_ascendancy_notable_3: [23252],
+            abyss_special_ascendancy_notable_4: [23251],
+          };
+          altSkill.StatsKeys = byId[altSkill.ID] ?? altSkill.StatsKeys;
+        }
         const hasMeaningfulAlt =
           altSkill &&
           (altSkill.Name != null ||
             altSkill.ID != null ||
             (altSkill.StatsKeys?.length ?? 0) > 0);
-        /** При полной замене тексты в SkillTree по skill id ещё старые (Acrobatics и т.д.) — не подставлять их вместо WASM-статов. */
-        const skipSkillTreeLineFallbackForAltBody =
-          isReplaceOnlyJewel ||
-          isKeystoneUnderJewel ||
-          isHeroicTragedyNotableReplace;
+        const useFullAltReplace =
+          !!hasMeaningfulAlt &&
+          (isReplaceOnlyJewel ||
+            isZorathAscendancyReplace ||
+            isKeystoneUnderJewel ||
+            isHeroicTragedyNotableReplace ||
+            // глаза: replace только на мелких; notable на пути — additions
+            (isAbyssEyeJewel(jewelType) && !hoveredNode.value?.isNotable) ||
+            // Zorath: любой APS (ascendancy + мелкие на пути)
+            (isAbyssSpecial && !!hasMeaningfulAlt));
+        /** При полной замене тексты в SkillTree по skill id ещё старые — не подставлять их вместо WASM-статов. */
+        const skipSkillTreeLineFallbackForAltBody = useFullAltReplace;
 
         if (hasMeaningfulAlt) {
-          if (
-            isReplaceOnlyJewel ||
-            isKeystoneUnderJewel ||
-            isHeroicTragedyNotableReplace
-          )
-            nodeStats = [];
+          if (useFullAltReplace) nodeStats = [];
           const altName = altSkill.Name;
           const altId = altSkill.ID ?? "";
           nodeName =
             currentLang === "ru"
               ? ((altId && passiveNamesRuById[altId]) ??
-                keystoneLabel(altName, altName, "ru") ??
-                altName)
-              : altName;
+                keystoneLabel(altName ?? "", altName ?? "", "ru") ??
+                altName ??
+                nodeName)
+              : (altName ?? nodeName);
           const pobLines = altId ? pobAltDisplayEn[altId] : undefined;
           /** PoB EN строки из JSON — для RU не брать их, если есть StatsKeys: иначе statNamesRu из passive_skill.json не используется. */
           const usePobEnTooltipLines =
@@ -833,7 +1105,7 @@ function render() {
                 `AlternatePassiveSkill id=${altId} graphSkill=${hoveredNode.value?.skill} i=${i}`,
               );
               const tr = inverseTranslations[stat.ID];
-              const roll = wasmStatRoll(result.StatRolls, i);
+              const roll = wasmStatRoll(result?.StatRolls, i);
               const lang = currentLang;
               let text: string;
               if (lang === "ru") {
@@ -906,10 +1178,34 @@ function render() {
               });
             });
           }
+          // Zorath APS: если StatsKeys не отрисовались — возьмём текст из словаря по id.
+          if (useFullAltReplace && nodeStats.length === 0 && altSkill.ID) {
+            const byId: Record<string, string> = {
+              abyss_special_ascendancy_notable_1:
+                "reclaimed_malevolence_notable_abyss_murderous",
+              abyss_special_ascendancy_notable_2:
+                "reclaimed_malevolence_notable_abyss_searching",
+              abyss_special_ascendancy_notable_3:
+                "reclaimed_malevolence_notable_abyss_hypnotic",
+              abyss_special_ascendancy_notable_4:
+                "reclaimed_malevolence_notable_abyss_ghastly",
+            };
+            const sid = byId[altSkill.ID];
+            if (sid) {
+              const text =
+                currentLang === "ru"
+                  ? (statNamesRuByStringId[sid] ??
+                    statTemplatesEnByStringId[sid] ??
+                    sid)
+                  : (statTemplatesEnByStringId[sid] ?? sid);
+              if (text) nodeStats.push({ text, special: true });
+            }
+          }
         } else if (
           result &&
           hoveredNode.value.skill != null &&
           (isReplaceOnlyJewel ||
+            isZorathAscendancyReplace ||
             isKeystoneUnderJewel ||
             isHeroicTragedyNotableReplace)
         ) {
@@ -1067,7 +1363,8 @@ function render() {
         nodeStats.length === 0 &&
         hoveredNode.value.stats &&
         !(isAlternate && isReplaceOnlyJewel) &&
-        !(isAlternate && isHeroicTragedyNotableReplace)
+        !(isAlternate && isHeroicTragedyNotableReplace) &&
+        !(isAlternate && isZorathAscendancyReplace)
       ) {
         const lang = currentLang;
         nodeStats = hoveredNode.value.stats.map((s) => ({
@@ -1109,11 +1406,6 @@ function render() {
   }
 
   cursor.value = hoveredNode.value?.isJewelSocket ? "pointer" : "unset";
-
-  ctx.fillStyle = "#ffffff";
-  ctx.textAlign = "right";
-  ctx.font = "12px Roboto Mono";
-  ctx.fillText(`${(performance.now() - start).toFixed(1)}ms`, w - 5, 17);
 }
 
 function loop() {

@@ -1,0 +1,8 @@
+{
+  "format": "ZOR1",
+  "jewels": [
+    11
+  ],
+  "sockets": [],
+  "note": "eyes: abyss-affected/<jewelType>/<socketId>.bin (ABY2 gzip); Zorath: abyss-affected/11/zorath.bin (ZOR1 gzip)"
+}

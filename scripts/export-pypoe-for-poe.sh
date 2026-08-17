@@ -99,17 +99,14 @@ npm run import:pypoe-bundle -- "${OUT_JSON}"
 echo "Дальше при необходимости: npm run prepare:wasm-data && npm run wasm:build"
 
 # =============================================================================
-# Русские строки для UI (build:dict / src/temp/ru/passive_skill.json)
+# Описания статов / кейстоунов для UI и WASM
 # =============================================================================
-# Этот скрипт обновляет только Stats / альтернативные пассивы для Go (data/*.json).
-# Формат RePoE (массив с ids + Russian[].string) PyPoE так не отдаёт — его даёт
-# отдельный экспортёр RePoE или уже собранные архивы go-pob-data.
+# Этот скрипт обновляет Stats / альтернативные пассивы для Go (data/*.json).
+# Тексты эффектов кейстоунов (в т.ч. Abyss: keystone_abyss_*) лежат в
+# Metadata/StatDescriptions/passive_skill_stat_descriptions.txt — их забирает:
 #
-# Что сделать для актуальных RU-переводов статов:
-#   • Клонировать RePoE (например https://github.com/brather1ng/RePoE ), настроить
-#     путь к каталогу с Content.ggpk, выполнить их export → в out/ появятся
-#     stat_translations; скопировать нужное в src/temp/ru/passive_skill.json (и при
-#     необходимости stat_translations.json), затем npm run build:dict.
-#   • Либо локально запустить go-pob-data против установленной игры и забрать
-#     stat_translations/ru/*.json.gz (см. scripts/extract-go-pob-data-local.mjs).
-#   • Временно — зеркало https://repoe-fork.github.io/Russian/stat_translations/
+#   npm run fetch:stat-descriptions-ggpk
+#   npm run build:dict
+#
+# Опционально (часто ломается на рассинхроне PyPoE↔RePoE):
+#   npm run fetch:stat-translations-ggpk

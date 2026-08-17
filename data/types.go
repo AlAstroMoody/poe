@@ -25,7 +25,11 @@ type AlternateTreeVersion struct {
 	AreSmallNormalPassiveSkillsReplaced    bool   `json:"Flag1"`
 	MinimumAdditions                       uint32 `json:"Unknown2"`
 	MaximumAdditions                       uint32 `json:"Unknown3"`
-	NotableReplacementSpawnWeight          uint32 `json:"Unknown6"`
+	// Unknown4/5: min/max additions for notables when they are not replaced
+	// (Abyss jewels use these; classic Karui/etc. often mirror Unknown2/3).
+	NotableMinimumAdditions       uint32 `json:"Unknown4"`
+	NotableMaximumAdditions       uint32 `json:"Unknown5"`
+	NotableReplacementSpawnWeight uint32 `json:"Unknown6"`
 }
 
 type AlternatePassiveSkill struct {

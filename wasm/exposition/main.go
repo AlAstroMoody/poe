@@ -18,12 +18,17 @@ func Expose() *crystalline.Exposer {
 	e.ExposeFuncOrPanic(data.GetPassiveSkillByIndex)
 
 	e.ExposeOrPanic(map[data.JewelType]string{
-		data.GloriousVanity:  data.GloriousVanity.String(),
-		data.LethalPride:     data.LethalPride.String(),
-		data.BrutalRestraint: data.BrutalRestraint.String(),
-		data.MilitantFaith:   data.MilitantFaith.String(),
-		data.ElegantHubris:   data.ElegantHubris.String(),
-		data.HeroicTragedy:   data.HeroicTragedy.String(),
+		data.GloriousVanity:         data.GloriousVanity.String(),
+		data.LethalPride:            data.LethalPride.String(),
+		data.BrutalRestraint:        data.BrutalRestraint.String(),
+		data.MilitantFaith:          data.MilitantFaith.String(),
+		data.ElegantHubris:          data.ElegantHubris.String(),
+		data.HeroicTragedy:          data.HeroicTragedy.String(),
+		data.FesteringVengeance:     data.FesteringVengeance.String(),
+		data.ExtinguishingGrasp:     data.ExtinguishingGrasp.String(),
+		data.BalefulDominion:        data.BalefulDominion.String(),
+		data.DestructiveAspiration:  data.DestructiveAspiration.String(),
+		data.ReclaimedMalevolence:   data.ReclaimedMalevolence.String(),
 	}, "data", "TimelessJewels")
 
 	e.ExposeOrPanic(data.TimelessJewelConquerors, "data", "TimelessJewelConquerors")

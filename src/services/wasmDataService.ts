@@ -12,8 +12,8 @@ declare global {
 }
 
 export interface WasmData {
-  GetAlternatePassiveAddiGetStatByIndex: (index: number) => unknown;
   GetAlternatePassiveSkillByIndex: (index: number) => unknown;
+  GetAlternatePassiveAdditionByIndex: (index: number) => unknown;
   GetPassiveSkillByIndex: (
     index: number,
   ) =>

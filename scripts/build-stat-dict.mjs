@@ -46,6 +46,21 @@ function fillFromDescriptors(obj, stringIdToRu) {
   }
 }
 
+function hasStatPlaceholder(s) {
+  return typeof s === "string" && /\{\d+(?::[^}]*)?\}/.test(s);
+}
+
+/** Prefer Cyrillic RU over accidental EN, then longer / multiline. */
+function prefersRuOverwrite(cur, value) {
+  if (!cur) return true;
+  if (value.includes("\n") && !cur.includes("\n")) return true;
+  const curCyr = /[А-Яа-яЁё]/.test(cur);
+  const valCyr = /[А-Яа-яЁё]/.test(value);
+  if (valCyr && !curCyr) return true;
+  if (curCyr && !valCyr) return false;
+  return value.length > cur.length;
+}
+
 /** Заполнить stringIdToRu и при наличии Russian[1] — stringIdToRuReduced (вариант "reduced"). */
 function fillStatDescriptionsFromTranslations(arr, stringIdToRu, stringIdToRuReduced) {
   if (!Array.isArray(arr)) return;
@@ -55,12 +70,12 @@ function fillStatDescriptionsFromTranslations(arr, stringIdToRu, stringIdToRuRed
     const first =
       Array.isArray(ru) && ru[0] && ru[0].string ? ru[0].string : null;
     if (!first || !Array.isArray(ids)) continue;
-    // плейсхолдеры {0} или многострочные описания (кистоуны с \n) — не короткие названия нод
-    if (!first.includes("{") && !first.includes("\n")) continue;
+    // плейсхолдеры {0} / {0:+d} или многострочные описания (кистоуны с \n) — не короткие названия нод
+    if (!hasStatPlaceholder(first) && !first.includes("\n")) continue;
     const reminder = Array.isArray(ru) && ru[0] && ru[0].reminder_text ? ru[0].reminder_text : null;
     // для статов с плейсхолдером {0} нужен string (шаблон для подстановки значения), а не reminder_text
     const value =
-      /\{\d+\}/.test(first)
+      hasStatPlaceholder(first)
         ? first
         : reminder && stripParens(reminder).length > first.length
           ? stripParens(reminder)
@@ -68,15 +83,14 @@ function fillStatDescriptionsFromTranslations(arr, stringIdToRu, stringIdToRuRed
     for (const id of ids) {
       if (id && typeof id === "string") {
         const cur = stringIdToRu.get(id);
-        const preferMultiLine = value.includes("\n") && (!cur || !cur.includes("\n"));
-        if (!cur || value.length > cur.length || preferMultiLine) stringIdToRu.set(id, value);
+        if (prefersRuOverwrite(cur, value)) stringIdToRu.set(id, value);
       }
     }
     if (stringIdToRuReduced && Array.isArray(ru) && ru[1] && ru[1].string) {
       const second = ru[1].string;
       const rem1 = ru[1].reminder_text;
       const valReduced =
-        /\{\d+\}/.test(second)
+        hasStatPlaceholder(second)
           ? second
           : rem1 && stripParens(rem1).length > second.length
             ? stripParens(rem1)
@@ -84,7 +98,7 @@ function fillStatDescriptionsFromTranslations(arr, stringIdToRu, stringIdToRuRed
       for (const id of ids) {
         if (id && typeof id === "string") {
           const cur = stringIdToRuReduced.get(id);
-          if (!cur || valReduced.length > cur.length) stringIdToRuReduced.set(id, valReduced);
+          if (prefersRuOverwrite(cur, valReduced)) stringIdToRuReduced.set(id, valReduced);
         }
       }
     }
@@ -102,7 +116,7 @@ function fillFromRepoeRu(arr, stringIdToRu, stringIdToRuReduced) {
     if (!first || !Array.isArray(ids)) continue;
     const reminder = Array.isArray(ru) && ru[0] && ru[0].reminder_text ? ru[0].reminder_text : null;
     const value =
-      /\{\d+\}/.test(first)
+      hasStatPlaceholder(first)
         ? first
         : reminder && stripParens(reminder).length > first.length
           ? stripParens(reminder)
@@ -111,14 +125,14 @@ function fillFromRepoeRu(arr, stringIdToRu, stringIdToRuReduced) {
       if (id && typeof id === "string") {
         if (id === "local_physical_damage_+%" && /Не наносит физический урон/i.test(value)) continue;
         const cur = stringIdToRu.get(id);
-        if (!cur || value.length > cur.length) stringIdToRu.set(id, value);
+        if (prefersRuOverwrite(cur, value)) stringIdToRu.set(id, value);
       }
     }
     if (stringIdToRuReduced && Array.isArray(ru) && ru[1] && ru[1].string) {
       const second = ru[1].string;
       const rem1 = ru[1].reminder_text;
       const valReduced =
-        /\{\d+\}/.test(second)
+        hasStatPlaceholder(second)
           ? second
           : rem1 && stripParens(rem1).length > second.length
             ? stripParens(rem1)
@@ -127,7 +141,7 @@ function fillFromRepoeRu(arr, stringIdToRu, stringIdToRuReduced) {
         if (id && typeof id === "string") {
           if (id === "local_physical_damage_+%" && /Не наносит физический урон/i.test(valReduced)) continue;
           const cur = stringIdToRuReduced.get(id);
-          if (!cur || valReduced.length > cur.length) stringIdToRuReduced.set(id, valReduced);
+          if (prefersRuOverwrite(cur, valReduced)) stringIdToRuReduced.set(id, valReduced);
         }
       }
     }
@@ -145,7 +159,7 @@ function fillFromAdvancedMod(arr, stringIdToRu, stringIdToRuReduced) {
     if (!first || !Array.isArray(ids)) continue;
     const reminder = Array.isArray(ru) && ru[0] && ru[0].reminder_text ? ru[0].reminder_text : null;
     const value =
-      /\{\d+\}/.test(first)
+      hasStatPlaceholder(first)
         ? first
         : reminder && stripParens(reminder).length > first.length
           ? stripParens(reminder)
@@ -154,14 +168,14 @@ function fillFromAdvancedMod(arr, stringIdToRu, stringIdToRuReduced) {
       if (id && typeof id === "string") {
         if (id === "local_physical_damage_+%" && /Не наносит физический урон/i.test(value)) continue;
         const cur = stringIdToRu.get(id);
-        if (!cur || value.length > cur.length) stringIdToRu.set(id, value);
+        if (prefersRuOverwrite(cur, value)) stringIdToRu.set(id, value);
       }
     }
     if (stringIdToRuReduced && Array.isArray(ru) && ru[1] && ru[1].string) {
       const second = ru[1].string;
       const rem1 = ru[1].reminder_text;
       const valReduced =
-        /\{\d+\}/.test(second)
+        hasStatPlaceholder(second)
           ? second
           : rem1 && stripParens(rem1).length > second.length
             ? stripParens(rem1)
@@ -170,7 +184,7 @@ function fillFromAdvancedMod(arr, stringIdToRu, stringIdToRuReduced) {
         if (id && typeof id === "string") {
           if (id === "local_physical_damage_+%" && /Не наносит физический урон/i.test(valReduced)) continue;
           const cur = stringIdToRuReduced.get(id);
-          if (!cur || valReduced.length > cur.length) stringIdToRuReduced.set(id, valReduced);
+          if (prefersRuOverwrite(cur, valReduced)) stringIdToRuReduced.set(id, valReduced);
         }
       }
     }
@@ -307,18 +321,43 @@ function fillStringIdToEnTemplate(arr, out) {
   }
 }
 
+/** go-pob descriptors (ids + list[].string) → EN templates / skeletons (keystone_abyss_* и т.п.). */
+function fillEnFromDescriptors(obj, stringIdToEnTemplate, skeletonToIdArrays) {
+  if (!obj || !Array.isArray(obj.descriptors)) return;
+  for (const d of obj.descriptors) {
+    const ids = d.ids;
+    const first = d.list && d.list[0] && d.list[0].string;
+    if (!first || !Array.isArray(ids)) continue;
+    for (const id of ids) {
+      if (!id || typeof id !== "string") continue;
+      const cur = stringIdToEnTemplate[id];
+      const preferMultiLine = first.includes("\n") && (!cur || !cur.includes("\n"));
+      if (!cur || first.length > cur.length || preferMultiLine) {
+        stringIdToEnTemplate[id] = first;
+      }
+      const skeleton = templateToSkeleton(first);
+      addSkeletonFromString(skeleton, id, skeletonToIdArrays);
+    }
+  }
+}
+
 function main() {
   const stringIdToRu = new Map();
   const stringIdToRuReduced = new Map();
 
-  // 1) Descriptors (опционально) — из temp/en
+  // 1) Descriptors RU only — EN must not seed stringIdToRu (shorter RU cannot overwrite).
   const descFiles = [
-    "stat_descriptions.json",
-    "passive_skill_stat_descriptions.json",
-    "passive_skill_aura_stat_descriptions.json",
+    join(TEMP_EN, "passive_skill_stat_descriptions_ru.json"),
+    join(TEMP_EN, "stat_descriptions_ru.json"),
+    join(TEMP_EN, "passive_skill_aura_stat_descriptions_ru.json"),
+    join(ROOT, "data", "passive_skill_stat_descriptions_ru.json"),
+    join(ROOT, "data", "passive_skill_stat_descriptions_ru.json.gz"),
+    join(ROOT, "data", "stat_descriptions_ru.json"),
+    join(ROOT, "data", "stat_descriptions_ru.json.gz"),
+    join(ROOT, "data", "passive_skill_aura_stat_descriptions_ru.json"),
+    join(ROOT, "data", "passive_skill_aura_stat_descriptions_ru.json.gz"),
   ];
-  for (const name of descFiles) {
-    const p = join(TEMP_EN, name);
+  for (const p of descFiles) {
     if (existsSync(p)) fillFromDescriptors(loadJson(p), stringIdToRu);
   }
 
@@ -455,6 +494,17 @@ function main() {
     const passiveEn = loadJson(passiveSkillEnPath);
     mergeSkeletonToIdArrays(skeletonToIdArrays, buildSkeletonToId(passiveEn));
     fillStringIdToEnTemplate(passiveEn, stringIdToEnTemplate);
+  }
+  // EN из GGPK StatDescriptions (keystone_abyss_*, Divine Flesh full text, …)
+  for (const p of [
+    join(TEMP_EN, "passive_skill_stat_descriptions.json"),
+    join(ROOT, "data", "passive_skill_stat_descriptions.json"),
+    join(ROOT, "data", "passive_skill_stat_descriptions.json.gz"),
+  ]) {
+    if (existsSync(p)) {
+      fillEnFromDescriptors(loadJson(p), stringIdToEnTemplate, skeletonToIdArrays);
+      break;
+    }
   }
   // Выбираем по одному id на скелетон: приоритет у id, для которых есть перевод (пассивное дерево и т.д.).
   const skeletonToId = resolveSkeletonToId(skeletonToIdArrays, stringIdToRu);

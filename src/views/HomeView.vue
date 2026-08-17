@@ -22,8 +22,11 @@ const bgImage = bgImages[Math.floor(Math.random() * bgImages.length)];
       >
         Вневременные <br class="block md:hidden" />самоцветы
       </h1>
-      <div class="text-heading font-celtes mb-5">
-        Дерево навыков для версии 3.29
+      <p class="text-heading font-celtes mb-1 max-w-[40rem] text-base opacity-95">
+        Легион и личи Бездны — калькулятор сидов для Path of Exile 3.29
+      </p>
+      <div class="text-heading/80 font-celtes mb-5 text-sm md:text-base">
+        Текрод, Уламан, Кургал, Аманаму, Зорат и классические вневременные самоцветы
       </div>
 
       <nav class="m-0 flex flex-wrap gap-3">

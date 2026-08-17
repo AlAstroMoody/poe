@@ -30,3 +30,4 @@ dist-ssr
 
 # Vite
 *.timestamp-*-*.mjs
+.tmp-pob-abyss/

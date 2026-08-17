@@ -38,11 +38,15 @@ func (a *AlternateTreeManager) IsPassiveSkillReplaced(rng *random.NumberGenerato
 func (a *AlternateTreeManager) AugmentPassiveSkill(rng *random.NumberGenerator) []data.AlternatePassiveAdditionInformation {
 	rng.Reset(a.PassiveSkill, a.TimelessJewel)
 
+	minAdditions := a.TimelessJewel.AlternateTreeVersion.MinimumAdditions
+	maxAdditions := a.TimelessJewel.AlternateTreeVersion.MaximumAdditions
 	if data.GetPassiveSkillType(a.PassiveSkill) == data.Notable {
 		rng.Generate(0, 100)
+		minAdditions = a.TimelessJewel.AlternateTreeVersion.NotableMinimumAdditions
+		maxAdditions = a.TimelessJewel.AlternateTreeVersion.NotableMaximumAdditions
 	}
 
-	return a.RollAdditions(a.TimelessJewel.AlternateTreeVersion.MinimumAdditions, a.TimelessJewel.AlternateTreeVersion.MaximumAdditions, rng)
+	return a.RollAdditions(minAdditions, maxAdditions, rng)
 }
 
 func (a *AlternateTreeManager) RollAlternatePassiveAddition(rng *random.NumberGenerator) *data.AlternatePassiveAddition {
@@ -69,6 +73,9 @@ func (a *AlternateTreeManager) RollAlternatePassiveAddition(rng *random.NumberGe
 func (a *AlternateTreeManager) ReplacePassiveSkill(rng *random.NumberGenerator) data.AlternatePassiveSkillInformation {
 	if a.PassiveSkill.IsKeystone {
 		alternatePassiveSkillKeyStone := data.GetAlternatePassiveSkillKeyStone(a.TimelessJewel)
+		if alternatePassiveSkillKeyStone == nil {
+			return data.AlternatePassiveSkillInformation{}
+		}
 		return data.AlternatePassiveSkillInformation{
 			AlternatePassiveSkill: alternatePassiveSkillKeyStone,
 			StatRolls: map[uint32]uint32{

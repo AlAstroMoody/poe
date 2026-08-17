@@ -2,6 +2,11 @@
 # Выгружает русские stat_translations из локального GGPK через repoe-fork/RePoE (тот же пайплайн,
 # что у https://repoe-fork.github.io/Russian/ ). Результат кладётся в src/temp/ru/ для npm run build:dict.
 #
+# Для описаний кейстоунов timeless/Abyss (keystone_abyss_*, Divine Flesh и т.п.) надёжнее
+# прямой путь без RePoE:
+#   npm run fetch:stat-descriptions-ggpk
+# Он читает Metadata/StatDescriptions/passive_skill_stat_descriptions.txt (UTF-16) из GGPK.
+#
 # Не используйте случайный zip «RePoE-master» с сайта — он расходится с актуальным PyPoE.
 # Нужен именно git clone https://github.com/repoe-fork/repoe.git рядом с PyPoE → POE_REPOE_DIR.
 #

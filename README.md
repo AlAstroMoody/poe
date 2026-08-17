@@ -4,7 +4,7 @@
 
 ## Основные возможности
 
-- **Поддержка всех 6 самоцветов:** Vaal, Karui, Maraketh, Templar, Eternal и Heroic Tragedy.
+- **Поддержка самоцветов:** классические timeless (Vaal…Eternal), Heroic Tragedy и Abyss-глаза 3.29 (Festering Vengeance … Reclaimed Malevolence).
 - **Интерактивное дерево:** Визуализация изменений нод с оригинальными тултипами.
 - **Поиск по характеристикам:** Поиск нужного сида по комбинации модов на выбранных нодах.
 - **Локализация:** Полная поддержка русского и английского языков (включая названия нод и описания модов).
@@ -98,12 +98,106 @@ POE_PYPOE_DAT_SPLIT=1 ./scripts/export-pypoe-for-poe.sh
 
 Либо скопировать `Content.ggpk` на обычный диск (ext4) и указать этот каталог в `POE_GGPK_DIR`.
 
-### 5. Дерево, словари и WASM
+### 5. Описания статов и кейстоунов (важно для Abyss)
+
+Эффекты кейстоунов timeless / Abyss (`keystone_divine_flesh`, `keystone_abyss_*`,
+`reclaimed_malevolence_notable_*`) живут не в `.dat`, а в клиентских текстах:
+
+`Metadata/StatDescriptions/passive_skill_stat_descriptions.txt` (**UTF-16**).
+
+Их нужно вытянуть отдельно (после экспорта таблиц или в любой момент при обновлении патча):
+
+```bash
+source scripts/load-poe-env.sh
+npm run fetch:stat-descriptions-ggpk
+npm run build:dict
+```
+
+Скрипт пишет:
+
+- `data/passive_skill_stat_descriptions.json(.gz)` + `_ru` — для WASM/тултипов;
+- `data/stat_descriptions*.json(.gz)` — общий файл описаний;
+- `src/temp/ru/passive_skill.json` — для `build:dict`.
+
+Проверка, что Abyss подтянулся:
+
+```bash
+rg -a "keystone_abyss_ghastly" data/passive_skill_stat_descriptions.json
+```
+
+### 5b. Abyss LUT: какие ноды завоеваны + роллы (7–11)
+
+У глаз (7–10) и Zorath (11) **нет круга radius**. Набор нод и роллы
+зависят от сокета/сида (глаза) или от пути к старту класса + ASCS (Zorath).
+Считать это на лету по всем сидам слишком дорого → предрасчёт в бинарные LUT
+из данных PoB (`TimelessJewelData/Abyss*`).
+
+#### Сборка
+
+```bash
+# глаза 7–10 (по умолчанию в скрипте)
+npm run build:abyss-affected
+
+# Zorath (#11) отдельно или вместе:
+python3 scripts/build-abyss-affected-nodes.py --jewels 7 8 9 10 11
+```
+
+Выход:
+
+| Путь | Формат | Что внутри |
+|------|--------|------------|
+| `public/abyss-affected/<7–10>/<socketId>.bin` | **ABY2** + gzip | на сокет: по каждому seed — список завоеванных nodeId + компоненты (APS/APA `_key` + rolls) |
+| `public/abyss-affected/11/zorath.bin` | **ZOR1** + gzip | индекс нод + моды по сиду + блок ASCS (ascendancy notables) |
+| `public/abyss-affected/manifest.json` | JSON | какие jewel types собраны |
+
+Источник и расклад байтов — в шапке `scripts/build-abyss-affected-nodes.py`.
+Чтение / lazy-load — `src/lib/abyssAffectedNodes.ts` (+ путь Zorath: `src/lib/zorathPath.ts`).
+
+#### Как попадают в билд
+
+Файлы лежат в **`public/`** → Vite **копирует их as-is в `dist/`** (не бандлит в JS).
+`npm run deploy` уносит весь `dist`, включая LUT.
+
+Сейчас порядка **~85 `.bin`, ~140 MB** на диске (gzip уже внутри каждого файла).
+
+Это **нормально для текущей схемы**, потому что рантайм **не качает всё сразу**:
+
+- глаз: только `…/<jewelType>/<socketId>.bin` (~1 MB) при выборе сокета;
+- Zorath: один `11/zorath.bin` (~27 MB) при выборе #11.
+
+Число файлов само по себе не проблема (статическая раздача). Реальные
+ограничения — **размер репозитория / артефакта деплоя / gh-pages**, не HTTP
+на клик.
+
+#### Варианты оптимизации (если понадобится)
+
+1. **Оставить как есть** — лучший UX при смене сокета у глаз; проще отладка.
+2. **Не коммитить `.bin`**, собирать в CI перед `deploy` (`build:abyss-affected`) —
+   тоньше git, тот же `dist`.
+3. **Один файл на jewel type** (индекс сокетов внутри) — меньше объектов в `dist`,
+   но при первом выборе типа качается ~30 MB сразу.
+4. **Вынести LUT на CDN / Releases** — фронт качает по URL; `dist` лёгкий.
+5. **Не хранить роллы**, считать WASM на лету только для видимых нод — сложнее
+   и медленнее reverse-search по сидам.
+
+Пока менять схему не обязательно: lazy-load уже режет трафик пользователя.
+
+#### UI-арт коннекторов
+
+Ядовито-зелёные связи — не из CDN skilltree sprites. Полоска из GGPK
+`AbyssPassiveSkillScreenCurves*Together` лежит в
+`public/abyss-connectors/AbyssLineConnectorActive.png` (см. отрисовку в
+`SkillTreeCanvas.vue`).
+
+Опционально (часто падает на рассинхроне PyPoE↔RePoE): `npm run fetch:stat-translations-ggpk`.
+
+### 6. Дерево, словари и WASM
 
 ```bash
 # тег skilltree-export (по умолчанию в скрипте — 3.29.1)
 npm run fetch:skilltree-export -- 3.29.1
 npm run fetch:passive-tree-ru
+npm run fetch:stat-descriptions-ggpk   # если ещё не гоняли в §5
 npm run build:dict
 
 npm run prepare:wasm-data
@@ -118,8 +212,11 @@ npm run wasm:build
 
 - `npm run fetch:skilltree-export` — JSON дерева с [skilltree-export](https://github.com/grindinggear/skilltree-export) (дефолт **3.29.1**).
 - `npm run fetch:passive-tree-ru` — русские названия нод с ru.pathofexile.com.
+- `npm run fetch:stat-descriptions-ggpk` — EN/RU описания статов и кейстоунов из GGPK (`passive_skill_stat_descriptions.txt` и др.).
+- `npm run fetch:stat-translations-ggpk` — альтернатива через RePoE (хрупче).
+- `npm run build:abyss-affected` — LUT глаз Abyss 7–10 → `public/abyss-affected/` (Zorath: `python3 scripts/build-abyss-affected-nodes.py --jewels 11`).
 - `npm run build:dict` — словари для поиска / тултипов.
-- `npm run build` — финальная сборка фронтенда.
+- `npm run build` — финальная сборка фронтенда (`public/` → `dist/` as-is, включая `.bin`).
 - `npm run deploy` — деплой на GitHub Pages.
 - `npm run release:check` — сверка meta дерева / stub’ов / числа нод.
 

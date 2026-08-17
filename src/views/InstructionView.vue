@@ -38,7 +38,7 @@ import AppPopover from "@/components/AppPopover.vue";
             Типы самоцветов
           </h2>
           <p>
-            Пять штук:
+            Пять классических камней легиона:
             <AppPopover popup-text="Glorious Vanity">
               <strong class="text-gray-200">Блистательное тщеславие</strong>
             </AppPopover>
@@ -58,8 +58,38 @@ import AppPopover from "@/components/AppPopover.vue";
             <AppPopover popup-text="Elegant Hubris">
               <strong class="text-gray-200">Изящный эгоизм</strong>
             </AppPopover>
-            (чары, уникальные ноды). В кальке выбираешь тип и имя завоевателя —
-            от него зависит кейстоун и пул статов.
+            (чары, уникальные ноды), плюс
+            <AppPopover popup-text="Heroic Tragedy">
+              <strong class="text-gray-200">Трагедия героев</strong>
+            </AppPopover>
+            (Калгуур). В кальке выбираешь тип и имя завоевателя — от него
+            зависит кейстоун и пул статов.
+          </p>
+          <p class="mt-3">
+            В 3.29 добавлены самоцветы
+            <strong class="text-gray-200">Бездны</strong> — глаза личей
+            <AppPopover popup-text="Tecrod / Festering Vengeance">
+              <strong class="text-gray-200">Текрод</strong>
+            </AppPopover>
+            ,
+            <AppPopover popup-text="Ulaman / Extinguishing Grasp">
+              <strong class="text-gray-200">Уламан</strong>
+            </AppPopover>
+            ,
+            <AppPopover popup-text="Kurgal / Baleful Dominion">
+              <strong class="text-gray-200">Кургал</strong>
+            </AppPopover>
+            ,
+            <AppPopover popup-text="Amanamu / Destructive Aspiration">
+              <strong class="text-gray-200">Аманаму</strong>
+            </AppPopover>
+            и
+            <AppPopover popup-text="Zorath / Reclaimed Malevolence">
+              <strong class="text-gray-200">Зорат</strong>
+            </AppPopover>
+            (Возвращённая злоба). У них нет круга радиуса: набор нод зависит от
+            сокета и сида (у Зората — ещё от класса и восхождения). В меню
+            выбери семейство «Бездна».
           </p>
         </section>
       </div>

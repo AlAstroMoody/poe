@@ -12,10 +12,19 @@ import { statValues } from "./values";
 import {
   statNamesRuByStringId,
   formatStatTemplate,
+  stripStatDescriptionMarkup,
   passiveNamesRuById,
   passiveSkillGraphIdToNameRu,
   passiveNodeRu,
 } from "./dict";
+import {
+  abyssAffectedEpoch,
+  isAbyssEyeJewel,
+  isAbyssSpecialJewel,
+  lookupAbyssAffectedSkillIds,
+  lookupZorathAffectedSkillIds,
+  lookupZorathPathSkillIds,
+} from "./abyssAffectedNodes";
 
 export let skillTree: SkillTreeData;
 
@@ -334,6 +343,16 @@ function applyStatIndexHandlers(
 }
 
 /**
+ * WASM/Go часто отдают роллы как uint32: отрицательные (−20) приходят как 4294967276.
+ * Тултип дерева уже приводил их; поиск/translateStat — тоже должны.
+ */
+export function coerceSignedStatRoll(raw: number): number {
+  if (!Number.isFinite(raw)) return raw;
+  if (raw >= 2147483648 && raw <= 4294967295) return raw - 4294967296;
+  return raw;
+}
+
+/**
  * Число для подстановки в русский шаблон {0} (тот же pipeline, что у formatStats для EN).
  * Если нет записи в inverseTranslations — возвращаем rawRoll.
  */
@@ -341,10 +360,11 @@ export function displayRollForStatTemplate(
   statId: string,
   rawRoll: number,
 ): number {
+  const roll = coerceSignedStatRoll(rawRoll);
   const tr = inverseTranslations[statId];
-  if (!tr) return rawRoll;
-  const applied = applyStatIndexHandlers(tr, rawRoll);
-  if (!applied) return rawRoll;
+  if (!tr) return roll;
+  const applied = applyStatIndexHandlers(tr, roll);
+  if (!applied) return roll;
   return parseFloat(applied.finalStat.toFixed(2));
 }
 
@@ -355,14 +375,65 @@ export const formatStats = (
   const applied = applyStatIndexHandlers(translation, stat);
   if (!applied) return undefined;
   const { finalStat, stringTemplate } = applied;
-  return stringTemplate
+  const text = stringTemplate
     .replace(/\{0(?::(.*?)d(.*?))\}/, "$1" + finalStat + "$2")
     .replace("{0}", parseFloat(finalStat.toFixed(2)).toString());
+  return stripStatDescriptionMarkup(text);
 };
 
 export const baseJewelRadius = 1800;
 
-export const getAffectedNodes = (socket: Node): Node[] => {
+export type AffectedNodesOptions = {
+  jewelType?: number;
+  seed?: number;
+  /** Zorath: classStartIndex (0–6). */
+  classStartIndex?: number;
+  /** Zorath: ASCS ascendancy id (e.g. Assassin). */
+  ascendancyName?: string;
+};
+
+export const getAffectedNodes = (
+  socket: Node,
+  options?: AffectedNodesOptions,
+): Node[] => {
+  const jewelType = options?.jewelType ?? 0;
+  const seed = options?.seed ?? 0;
+  if (isAbyssEyeJewel(jewelType) && socket.skill != null && seed > 0) {
+    // Touch epoch so Vue recomputes after lazy LUT load.
+    void abyssAffectedEpoch.value;
+    const ids = lookupAbyssAffectedSkillIds(socket.skill, seed, jewelType);
+    if (ids) {
+      return ids
+        .map((id) => drawnNodes[id])
+        .filter((n): n is Node => n != null);
+    }
+    return [];
+  }
+  if (isAbyssSpecialJewel(jewelType) && socket.skill != null) {
+    void abyssAffectedEpoch.value;
+    const classStartIndex = options?.classStartIndex;
+    if (classStartIndex == null || !skillTree?.nodes) return [];
+    const fromLut =
+      seed > 0
+        ? lookupZorathAffectedSkillIds(
+            skillTree.nodes,
+            socket.skill,
+            seed,
+            classStartIndex,
+            options?.ascendancyName,
+          )
+        : undefined;
+    const ids =
+      fromLut ??
+      lookupZorathPathSkillIds(
+        skillTree.nodes,
+        socket.skill,
+        classStartIndex,
+      );
+    return ids
+      .map((id) => drawnNodes[id])
+      .filter((n): n is Node => n != null);
+  }
   const pos = calculateNodePos(socket, 0, 0, 1);
   return Object.values(drawnNodes).filter(
     (node) => distance(calculateNodePos(node, 0, 0, 1), pos) < baseJewelRadius,
@@ -502,7 +573,8 @@ export const translateStat = (
     );
   }
   const tr = inverseTranslations[stat.ID];
-  if (roll != null && tr) return formatStats(tr, roll) ?? stat.ID;
+  if (roll != null && tr)
+    return formatStats(tr, coerceSignedStatRoll(roll)) ?? stat.ID;
   let text = stat.Text || stat.ID;
   if (tr?.list?.length) {
     text = tr.list[0].string

@@ -21,6 +21,10 @@ func GetPassiveSkillType(passiveSkill *PassiveSkill) PassiveSkillType {
 }
 
 func GetAlternatePassiveSkillKeyStone(timelessJewel TimelessJewel) *AlternatePassiveSkill {
+	if timelessJewel.TimelessJewelConqueror == nil {
+		return nil
+	}
+
 	var alternatePassiveSkillKeyStone *AlternatePassiveSkill
 	for _, skill := range AlternatePassiveSkills {
 		if skill.AlternateTreeVersionsKey != timelessJewel.AlternateTreeVersion.Index {

@@ -39,6 +39,22 @@ import AppButton from "@/components/AppButton.vue";
         </section>
         <section>
           <h2 class="font-celtes text-heading text-lg mb-2">
+            Что за самоцветы Бездны и личи?
+          </h2>
+          <p>
+            В 3.29 появились вневременные камни Бездны: глаза личей
+            <strong class="text-gray-200">Текрод</strong>,
+            <strong class="text-gray-200">Уламан</strong>,
+            <strong class="text-gray-200">Кургал</strong>,
+            <strong class="text-gray-200">Аманаму</strong> и
+            <strong class="text-gray-200">Зорат</strong> (Возвращённая злоба).
+            Они тоже меняют ноды по сиду, но без классического круга радиуса —
+            область «завоёванных» нод зависит от сокета (у Зората ещё от класса
+            и восхождения). В калькуляторе это семейство «Бездна».
+          </p>
+        </section>
+        <section>
+          <h2 class="font-celtes text-heading text-lg mb-2">
             Поиск по статам долго грузится — это норма?
           </h2>
           <p>

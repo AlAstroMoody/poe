@@ -21,6 +21,14 @@ function onHighlight() {
     props.set.skills.map((s) => s.passive),
   );
 }
+
+function statLines(statId: string | number, roll: number): string[] {
+  return translateStat(Number(statId), roll, props.lang)
+    .replace(/\\n/g, "\n")
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
 </script>
 
 <template>
@@ -63,9 +71,14 @@ function onHighlight() {
           <span class="font-normal text-muted">({{ skill.passive }})</span>
         </p>
         <ul class="mt-1.5 space-y-0.5 border-l-2 border-accent/35 pl-2.5 text-sm leading-relaxed text-white/90">
-          <li v-for="(roll, statId) in skill.stats" :key="statId">
-            {{ translateStat(Number(statId), roll, lang) }}
-          </li>
+          <template v-for="(roll, statId) in skill.stats" :key="statId">
+            <li
+              v-for="(line, lineIdx) in statLines(statId, roll)"
+              :key="`${statId}-${lineIdx}`"
+            >
+              {{ line }}
+            </li>
+          </template>
         </ul>
       </section>
     </div>

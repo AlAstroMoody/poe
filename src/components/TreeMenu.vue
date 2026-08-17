@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, watch, computed } from "vue";
 import type { Lang } from "@/lib/i18n";
 import { ui } from "@/lib/dict";
 import SearchResultsList from "./SearchResultsList.vue";
@@ -10,7 +10,10 @@ import StatsModePanel from "./StatsModePanel.vue";
 import { useLeagueData } from "@/composables/useLeagueData";
 import { useTreeMenuState } from "@/composables/useTreeMenuState";
 import { useReverseSearch } from "@/composables/useReverseSearch";
+import { getData } from "@/services/wasmDataService";
 import AppSelect from "./AppSelect.vue";
+import { skillTree } from "@/lib/skill_tree";
+import { ZORATH_EMPTY_ASCENDANCIES } from "@/lib/zorathPath";
 
 const props = defineProps<{
   lang: Lang;
@@ -20,6 +23,8 @@ const props = defineProps<{
   selectedConqueror: string;
   seed: number;
   highlighted: number[];
+  classStartIndex: number;
+  ascendancyName: string;
 }>();
 
 const emit = defineEmits<{
@@ -28,12 +33,20 @@ const emit = defineEmits<{
   "update:seed": [v: number];
   "update:highlighted": [v: number[]];
   "update:disabled": [v: number[]];
+  "update:classStartIndex": [v: number];
+  "update:ascendancyName": [v: string];
   "update-url": [];
 }>();
 
 const {
-  jewels,
+  familyJewels,
+  jewelFamily,
   conquerors,
+  showConquerorSelect,
+  isAbyssJewel,
+  isZorathJewel,
+  classOptions,
+  ascendancyOptions,
   affectedNodes,
   seedValid,
   mode,
@@ -55,7 +68,60 @@ const {
   selectedConqueror: () => props.selectedConqueror,
   seed: () => props.seed,
   disabled: () => props.disabled,
+  classStartIndex: () => props.classStartIndex,
+  ascendancyName: () => props.ascendancyName,
 });
+
+const jewelFamilyOptions = computed(() => [
+  { value: "timeless", label: ui("jewelFamilyTimeless", props.lang) },
+  { value: "abyss", label: ui("jewelFamilyAbyss", props.lang) },
+]);
+
+function ascendancyIdsForClass(classIndex: number): string[] {
+  const cls = skillTree?.classes?.[classIndex];
+  if (!cls) return [];
+  return cls.ascendancies
+    .filter((a) => !ZORATH_EMPTY_ASCENDANCIES.has(a.id))
+    .map((a) => a.id);
+}
+
+function applyJewel(jewelId: number) {
+  emit("update:selectedJewel", jewelId);
+  const next = getData().TimelessJewelConquerors[jewelId] ?? {};
+  const first = Object.keys(next)[0] ?? "";
+  emit("update:selectedConqueror", first);
+  if (jewelId === 11) {
+    const classIdx = props.classStartIndex || 1;
+    emit("update:classStartIndex", classIdx);
+    const ids = ascendancyIdsForClass(classIdx);
+    if (!ids.includes(props.ascendancyName)) {
+      emit("update:ascendancyName", ids[0] ?? "");
+    }
+  }
+  changeJewel();
+}
+
+function onClassChange(v: string | number) {
+  const idx = Number(v);
+  emit("update:classStartIndex", idx);
+  const ids = ascendancyIdsForClass(idx);
+  emit("update:ascendancyName", ids[0] ?? "");
+  updateUrl();
+}
+
+function onAscendancyChange(v: string | number) {
+  emit("update:ascendancyName", String(v));
+  updateUrl();
+}
+
+function changeJewelFamily(family: string | number) {  const f = String(family) === "abyss" ? "abyss" : "timeless";
+  if (jewelFamily.value === f) return;
+  const ids = Object.keys(getData().TimelessJewels)
+    .map(Number)
+    .filter((id) => (f === "abyss" ? id >= 7 : id < 7))
+    .sort((a, b) => a - b);
+  applyJewel(ids[0] ?? (f === "abyss" ? 7 : 1));
+}
 
 const { platform, league, leagues } = useLeagueData();
 
@@ -74,6 +140,8 @@ const {
   selectedJewel: () => props.selectedJewel,
   selectedConqueror: () => props.selectedConqueror,
   disabled: () => props.disabled,
+  classStartIndex: () => props.classStartIndex,
+  ascendancyName: () => props.ascendancyName,
 });
 
 function highlight(newSeed: number, passives: number[]) {
@@ -116,6 +184,7 @@ function selectAll() {
   const all = allAffectedSkillIds.value;
   const allSelected = props.disabled.length === 0;
   emit("update:disabled", allSelected ? all : []);
+  updateUrl();
 }
 function selectAllNotables() {
   const notables = notableIds.value;
@@ -124,6 +193,7 @@ function selectAllNotables() {
     ? [...props.disabled, ...notables]
     : props.disabled.filter((id) => !notablesSet.has(id));
   emit("update:disabled", next);
+  updateUrl();
 }
 function selectAllPassives() {
   const passives = passiveIds.value;
@@ -132,9 +202,16 @@ function selectAllPassives() {
     ? [...props.disabled, ...passives]
     : props.disabled.filter((id) => !passivesSet.has(id));
   emit("update:disabled", next);
+  updateUrl();
 }
 function deselectAll() {
   emit("update:disabled", [...allAffectedSkillIds.value]);
+  updateUrl();
+}
+function resetNodes() {
+  emit("update:disabled", []);
+  emit("update:highlighted", []);
+  updateUrl();
 }
 
 watch(addStatValue, (v) => {
@@ -183,22 +260,46 @@ watch(addStatValue, (v) => {
         <div v-if="!showResults">
           <label
             class="mb-1.5 block text-xs font-medium uppercase tracking-wide text-muted"
+            >{{ ui("jewelFamily", lang) }}</label
+          >
+          <div
+            class="mb-4 flex rounded-lg border border-surface-border/30 bg-black/25 p-0.5"
+            role="tablist"
+          >
+            <button
+              v-for="opt in jewelFamilyOptions"
+              :key="opt.value"
+              type="button"
+              role="tab"
+              class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors"
+              :class="
+                jewelFamily === opt.value
+                  ? 'bg-white/12 text-heading shadow-sm'
+                  : 'text-muted hover:text-white'
+              "
+              :aria-selected="jewelFamily === opt.value"
+              @click="changeJewelFamily(opt.value)"
+            >
+              {{ opt.label }}
+            </button>
+          </div>
+
+          <label
+            class="mb-1.5 block text-xs font-medium uppercase tracking-wide text-muted"
             >{{ ui("jewel", lang) }}</label
           >
           <AppSelect
             :model-value="selectedJewel"
-            :options="jewels"
+            :options="familyJewels"
             class="w-full"
             @update:model-value="
               (v: string | number) => {
-                emit('update:selectedJewel', Number(v));
-                emit('update:selectedConqueror', '');
-                changeJewel();
+                applyJewel(Number(v));
               }
             "
           />
 
-          <div v-if="selectedJewel" class="mt-5">
+          <div v-if="selectedJewel && showConquerorSelect" class="mt-5">
             <label
               class="mb-1.5 block text-xs font-medium uppercase tracking-wide text-muted"
             >
@@ -217,6 +318,49 @@ watch(addStatValue, (v) => {
               "
             />
           </div>
+          <div
+            v-else-if="selectedJewel && isAbyssJewel && selectedConqueror"
+            class="mt-3 flex flex-wrap items-baseline gap-x-2 text-sm"
+          >
+            <span class="text-xs font-medium uppercase tracking-wide text-muted">{{
+              ui("lich", lang)
+            }}</span>
+            <span class="text-heading/90">
+              {{
+                conquerors.find((c) => c.value === selectedConqueror)?.label ??
+                selectedConqueror
+              }}
+            </span>
+          </div>
+
+          <template v-if="isZorathJewel">
+            <div class="mt-5">
+              <label
+                class="mb-1.5 block text-xs font-medium uppercase tracking-wide text-muted"
+              >
+                {{ ui("characterClass", lang) }}
+              </label>
+              <AppSelect
+                :model-value="classStartIndex"
+                :options="classOptions"
+                class="w-full"
+                @update:model-value="onClassChange"
+              />
+            </div>
+            <div v-if="ascendancyOptions.length" class="mt-5">
+              <label
+                class="mb-1.5 block text-xs font-medium uppercase tracking-wide text-muted"
+              >
+                {{ ui("ascendancy", lang) }}
+              </label>
+              <AppSelect
+                :model-value="ascendancyName"
+                :options="ascendancyOptions"
+                class="w-full"
+                @update:model-value="onAscendancyChange"
+              />
+            </div>
+          </template>
 
           <div
             v-if="
@@ -259,6 +403,18 @@ watch(addStatValue, (v) => {
               </button>
             </div>
 
+            <button
+              v-if="disabled.length > 0 || highlighted.length > 0"
+              type="button"
+              class="mt-2 w-full rounded-md border border-surface-border/25 bg-white/5 px-3 py-2 text-sm text-muted transition-colors hover:border-accent/35 hover:bg-accent/10 hover:text-accent-muted"
+              @click="resetNodes"
+            >
+              {{ ui("resetNodes", lang) }}
+              <span v-if="disabled.length" class="tabular-nums opacity-70">
+                · {{ disabled.length }}
+              </span>
+            </button>
+
             <SeedModePanel
               v-if="mode === 'seed'"
               :lang="lang"
@@ -269,6 +425,8 @@ watch(addStatValue, (v) => {
               :selected-jewel="selectedJewel"
               :selected-conqueror="selectedConqueror"
               :highlighted="highlighted"
+              :class-start-index="classStartIndex"
+              :ascendancy-name="ascendancyName"
               @update:seed="emit('update:seed', $event)"
               @highlight="highlight"
               @seed-blur="onSeedBlur()"

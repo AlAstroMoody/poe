@@ -23,6 +23,8 @@ const seed = ref(0);
 const highlighted = ref<number[]>([]);
 const disabled = ref<number[]>([]);
 const highlightJewels = ref(false);
+const classStartIndex = ref(1);
+const ascendancyName = ref("Juggernaut");
 
 function readQuery() {
   const q = route.query;
@@ -30,6 +32,8 @@ function readQuery() {
   if (q.conqueror) selectedConqueror.value = String(q.conqueror);
   if (q.seed) seed.value = Number(q.seed);
   if (q.location) circledNode.value = Number(q.location);
+  if (q.class != null) classStartIndex.value = Number(q.class);
+  if (q.asc) ascendancyName.value = String(q.asc);
   if (q.disabled)
     disabled.value = Array.isArray(q.disabled)
       ? q.disabled.map(Number)
@@ -46,6 +50,10 @@ function updateUrl() {
   if (selectedConqueror.value) q.conqueror = selectedConqueror.value;
   if (seed.value) q.seed = String(seed.value);
   if (circledNode.value != null) q.location = String(circledNode.value);
+  if (selectedJewel.value === 11) {
+    q.class = String(classStartIndex.value);
+    if (ascendancyName.value) q.asc = ascendancyName.value;
+  }
   disabled.value.forEach((d) => {
     if (!q.disabled) q.disabled = [];
     (q.disabled as string[]).push(String(d));
@@ -114,6 +122,8 @@ watch(() => route.query, readQuery, { deep: true });
           :highlighted="highlighted"
           :disabled="disabled"
           :highlight-jewels="highlightJewels"
+          :class-start-index="classStartIndex"
+          :ascendancy-name="ascendancyName"
           :lang="lang"
           @click-node="onClickNode"
         />
@@ -125,11 +135,15 @@ watch(() => route.query, readQuery, { deep: true });
           :selected-conqueror="selectedConqueror"
           :seed="seed"
           :highlighted="highlighted"
+          :class-start-index="classStartIndex"
+          :ascendancy-name="ascendancyName"
           @update:selected-jewel="selectedJewel = $event"
           @update:selected-conqueror="selectedConqueror = $event"
           @update:seed="seed = $event"
           @update:highlighted="highlighted = $event"
           @update:disabled="disabled = $event"
+          @update:class-start-index="classStartIndex = $event"
+          @update:ascendancy-name="ascendancyName = $event"
           @update-url="updateUrl"
         />
         <TreeNav v-model:lang="lang" />

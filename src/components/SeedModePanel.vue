@@ -16,6 +16,8 @@ const props = defineProps<{
   selectedJewel: number;
   selectedConqueror: string;
   highlighted: number[];
+  classStartIndex?: number;
+  ascendancyName?: string;
 }>();
 
 const emit = defineEmits<{
@@ -40,6 +42,8 @@ const {
   selectedJewel: () => props.selectedJewel,
   selectedConqueror: () => props.selectedConqueror,
   highlighted: () => props.highlighted,
+  classStartIndex: () => props.classStartIndex ?? 0,
+  ascendancyName: () => props.ascendancyName ?? "",
 });
 
 const sortOptions = [

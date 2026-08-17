@@ -25,6 +25,11 @@ export const jewelNamesRu: Record<number, string> = {
   4: "Воинственная вера", // Militant Faith
   5: "Изящный эгоизм", // Elegant Hubris
   6: "Трагедия героев", // Heroic Tragedy
+  7: "Гниющее возмездие", // Festering Vengeance
+  8: "Удушающая хватка", // Extinguishing Grasp
+  9: "Моровое господство", // Baleful Dominion
+  10: "Разрушительное вдохновение", // Destructive Aspiration
+  11: "Возвращённая злоба", // Reclaimed Malevolence
 };
 
 /** Завоеватели: английское имя → русское название (официальная локализация игры) */
@@ -58,6 +63,12 @@ export const conquerorNamesRu: Record<string, string> = {
   "Celestial Mathematics": "Утред",
   "The Unbreaking Circle": "Медведь",
   "Black Scythe Training": "Ворана",
+  // Abyss liches
+  Tecrod: "Текрод",
+  Ulaman: "Уламан",
+  Kurgal: "Кургал",
+  Amanamu: "Аманаму",
+  Zorath: "Зорат",
 };
 
 /** Получить отображаемое название самоцвета (по id и английскому label с бэка) */
@@ -236,9 +247,20 @@ export function formatStatTemplate(
   template: string,
   rolls: (number | undefined)[],
 ): string {
-  return template.replace(/\{(\d+)\}/g, (_, n) =>
+  const filled = template.replace(/\{(\d+)(?::[^}]*)?\}/g, (_, n) =>
     String(rolls[Number(n)] ?? "#"),
   );
+  return stripStatDescriptionMarkup(filled);
+}
+
+/**
+ * GGG rich-text в StatDescriptions: `[DirectFlight|дальность полета]` → `дальность полета`.
+ * Также убирает префикс `[DNT]`.
+ */
+export function stripStatDescriptionMarkup(text: string): string {
+  return text
+    .replace(/\[DNT\]\s*/g, "")
+    .replace(/\[[^\[\]|]+\|([^\[\]]+)\]/g, "$1");
 }
 
 /** Нормализация имени для поиска в словаре (отображаемое имя → internal id: апостроф убрать, пробелы в _, нижний регистр). */
@@ -271,6 +293,11 @@ const jewelFlavorRu: Record<number, string> = {
   4: "Выточен во славу от {min} до {max} послушников, обращённых Верховным жрецом {conqueror}. Пассивные умения в радиусе завоеваны храмовниками.",
   5: "Выделено от {min} до {max} монет в память о {conqueror}. Пассивные умения в радиусе завоеваны Вечной империей.",
   6: "Вспоминая о {min}–{max} славных деяниях рода {conqueror}. Пассивные умения в радиусе завоеваны калгуурами.",
+  7: "Подчиняет от {min} до {max} душ в рабство {conqueror}. Пассивные умения завоеваны монстрами Бездны.",
+  8: "Подчиняет от {min} до {max} душ в рабство {conqueror}. Пассивные умения завоеваны монстрами Бездны.",
+  9: "Подчиняет от {min} до {max} душ в рабство {conqueror}. Пассивные умения завоеваны монстрами Бездны.",
+  10: "Подчиняет от {min} до {max} душ в рабство {conqueror}. Пассивные умения завоеваны монстрами Бездны.",
+  11: "Подчиняет от {min} до {max} душ в рабство {conqueror}. Пассивные умения завоеваны монстрами Бездны.",
 };
 
 const jewelFlavorEn: Record<number, string> = {
@@ -280,6 +307,11 @@ const jewelFlavorEn: Record<number, string> = {
   4: "Carved to glorify {min} to {max} new faithful converted by High Templar {conqueror}. Passives in radius are Conquered by the Templars.",
   5: "Commissioned {min} to {max} coins to commemorate {conqueror}. Passives in radius are Conquered by the Eternal Empire.",
   6: "Remembrancing {min}–{max} songworthy deeds by the line of {conqueror}. Passives in radius are Conquered by the Kalguur.",
+  7: "Subjugating {min}–{max} souls in the thrall of {conqueror}. Passives affected are Conquered by the Abyssal.",
+  8: "Subjugating {min}–{max} souls in the thrall of {conqueror}. Passives affected are Conquered by the Abyssal.",
+  9: "Subjugating {min}–{max} souls in the thrall of {conqueror}. Passives affected are Conquered by the Abyssal.",
+  10: "Subjugating {min}–{max} souls in the thrall of {conqueror}. Passives affected are Conquered by the Abyssal.",
+  11: "Binding {min}–{max} souls to phylacteries to sustain {conqueror}. Passives affected are Conquered by the Abyssal.",
 };
 
 export function getJewelFlavorText(
@@ -319,8 +351,14 @@ export function getJewelFlavorLines(
 /** Подписи интерфейса меню */
 export const uiEn = {
   jewel: "Jewel",
+  jewelFamily: "Type",
+  jewelFamilyTimeless: "Timeless",
+  jewelFamilyAbyss: "Abyss",
   conqueror: "Conqueror",
-  title: "Timeless Jewel",
+  lich: "Lich",
+  characterClass: "Class",
+  ascendancy: "Ascendancy",
+  title: "Timeless Jewels & Abyss",
   results: "Results",
   config: "Config",
   enterSeed: "Enter Seed",
@@ -354,12 +392,21 @@ export const uiEn = {
   filterStatList: "Search in list…",
   noResults: "No results found",
   customFont: "Custom font",
+  resetNodes: "Reset nodes",
+  showNav: "Show navigation",
+  hideNav: "Hide navigation",
 } as const;
 
 export const uiRu: Record<keyof typeof uiEn, string> = {
   jewel: "Самоцвет",
+  jewelFamily: "Тип",
+  jewelFamilyTimeless: "Вневременные",
+  jewelFamilyAbyss: "Бездна",
   conqueror: "Завоеватель",
-  title: "Вневременные самоцветы",
+  lich: "Лич",
+  characterClass: "Класс",
+  ascendancy: "Восхождение",
+  title: "Вневременные самоцветы и Бездна",
   results: "Результаты",
   config: "Настройки",
   enterSeed: "Ввести номер",
@@ -393,6 +440,9 @@ export const uiRu: Record<keyof typeof uiEn, string> = {
   filterStatList: "Поиск в списке…",
   noResults: "Совпадений нет",
   customFont: "Кастомный шрифт",
+  resetNodes: "Сбросить ноды",
+  showNav: "Показать навигацию",
+  hideNav: "Скрыть навигацию",
 };
 
 export function ui(key: keyof typeof uiEn, lang: "ru" | "en"): string {

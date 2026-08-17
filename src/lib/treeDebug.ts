@@ -1,5 +1,6 @@
 /**
  * Включить: `?treeDebug=1` или `localStorage.setItem('poeTreeDebug','1')`.
+ * При наведении на ноду под Abyss/timeless в консоли: `[poe-tree] alternate` со stats[].
  */
 
 const LS_KEY = "poeTreeDebug";

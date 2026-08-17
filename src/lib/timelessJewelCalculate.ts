@@ -1,3 +1,9 @@
+import {
+  abyssAffectedEpoch,
+  isAbyssEyeJewel,
+  isAbyssSpecialJewel,
+  lookupAbyssCalculateResult,
+} from "./abyssAffectedNodes";
 import { getData, getCalculator } from "@/services/wasmDataService";
 import type { WasmCalculator } from "@/services/wasmDataService";
 
@@ -51,7 +57,24 @@ export function calculateTimelessForTreeSkill(
   seed: number,
   jewelType: number,
   conqueror: string,
+  socketSkillId?: number,
 ): ReturnType<WasmCalculator["Calculate"]> {
+  if (
+    (isAbyssEyeJewel(jewelType) || isAbyssSpecialJewel(jewelType)) &&
+    socketSkillId != null &&
+    seed > 0
+  ) {
+    void abyssAffectedEpoch.value;
+    const fromLut = lookupAbyssCalculateResult(
+      socketSkillId,
+      seed,
+      jewelType,
+      passiveSkillGraphId,
+    );
+    if (fromLut !== undefined) {
+      return fromLut as ReturnType<WasmCalculator["Calculate"]>;
+    }
+  }
   const row = getPassiveRowByTreeSkill(passiveSkillGraphId);
   if (!row) return undefined;
   return getCalculator().Calculate(
