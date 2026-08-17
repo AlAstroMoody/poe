@@ -1,6 +1,7 @@
 {
-  "name": "Вневременные самоцветы",
-  "short_name": "Вневременные самоцветы",
+  "name": "Вневременные самоцветы и Бездна",
+  "short_name": "Самоцветы PoE",
+  "description": "Калькулятор вневременных самоцветов и личей Бездны Path of Exile 3.29",
   "icons": [
     { "src": "/favicons/favicon-16x16.png", "sizes": "16x16", "type": "image/png" },
     { "src": "/favicons/favicon-32x32.png", "sizes": "32x32", "type": "image/png" },
