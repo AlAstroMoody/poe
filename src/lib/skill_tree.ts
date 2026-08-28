@@ -25,6 +25,7 @@ import {
   isAbyssEyeJewel,
   isAbyssSpecialJewel,
   lookupAbyssAffectedSkillIds,
+  lookupAbyssUnionSkillIds,
   lookupZorathAffectedSkillIds,
   lookupZorathPathSkillIds,
 } from "./abyssAffectedNodes";
@@ -401,10 +402,13 @@ export const getAffectedNodes = (
 ): Node[] => {
   const jewelType = options?.jewelType ?? 0;
   const seed = options?.seed ?? 0;
-  if (isAbyssEyeJewel(jewelType) && socket.skill != null && seed > 0) {
+  if (isAbyssEyeJewel(jewelType) && socket.skill != null) {
     // Touch epoch so Vue recomputes after lazy LUT load.
     void abyssAffectedEpoch.value;
-    const ids = lookupAbyssAffectedSkillIds(socket.skill, seed, jewelType);
+    const ids =
+      seed > 0
+        ? lookupAbyssAffectedSkillIds(socket.skill, seed, jewelType)
+        : lookupAbyssUnionSkillIds(socket.skill, jewelType);
     if (ids) {
       return ids
         .map((id) => drawnNodes[id])
@@ -501,26 +505,40 @@ export async function runReverseSearch(
     config.conqueror,
     (seed: number) => Promise.resolve(void onProgress(seed)),
   )) as Record<string, Record<string, Record<number, number>>> | undefined;
+  return processReverseSearchRaw(raw, config);
+}
+
+/** Собрать SearchResults из raw seed→passiveIndex→stat→roll (Go или Abyss LUT). */
+export function processReverseSearchRaw(
+  raw:
+    | Record<string, Record<string, Record<number, number>>>
+    | Record<number, Record<number, Record<number, number>>>
+    | undefined,
+  config: Pick<ReverseSearchConfig, "stats" | "minTotalWeight">,
+): SearchResults {
   if (!raw) return { grouped: {}, raw: [] };
 
   const searchGrouped: Record<number, SearchWithSeed[]> = {};
   Object.keys(raw).forEach((seedStr) => {
     const seed = parseInt(seedStr, 10);
+    const seedBucket = (
+      raw as Record<string, Record<string, Record<number, number>>>
+    )[seedStr];
     let weight = 0;
     const statCounts: Record<number, number> = {};
-    const skills = Object.keys(raw[seed])
+    const skills = Object.keys(seedBucket)
       .map((skillIDStr) => {
         const skillID = parseInt(skillIDStr, 10);
         const treeId = passiveToTree[skillID];
         if (treeId == null) return null;
-        Object.keys(raw[seed][skillID]).forEach((st) => {
+        Object.keys(seedBucket[skillID]).forEach((st) => {
           const n = parseInt(st, 10);
           statCounts[n] = (statCounts[n] || 0) + 1;
           weight += config.stats.find((s) => s.id === n)?.weight ?? 0;
         });
         const stats: Record<string, number> = {};
-        Object.keys(raw[seed][skillID]).forEach(
-          (k) => (stats[k] = raw[seed][skillID][parseInt(k, 10)]),
+        Object.keys(seedBucket[skillID]).forEach(
+          (k) => (stats[k] = seedBucket[skillID][parseInt(k, 10)]),
         );
         return { passive: treeId, stats };
       })
@@ -528,7 +546,7 @@ export async function runReverseSearch(
         (s): s is { passive: number; stats: Record<string, number> } =>
           s != null,
       );
-    const len = Object.keys(raw[seed]).length;
+    const len = Object.keys(seedBucket).length;
     const item: SearchWithSeed = { seed, weight, statCounts, skills };
     if (!searchGrouped[len]) searchGrouped[len] = [];
     searchGrouped[len].push(item);

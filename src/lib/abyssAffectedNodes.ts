@@ -488,6 +488,175 @@ export function lookupAbyssAffectedSkillIds(
   return Array.from(map.keys());
 }
 
+/** Все ноды, которые хоть при одном сиде попадают под глаз (для поиска / подсветки без сида). */
+export function lookupAbyssUnionSkillIds(
+  socketId: number,
+  jewelType: number,
+): number[] | undefined {
+  if (!isAbyssEyeJewel(jewelType)) return undefined;
+  const table = cache.get(cacheKey(jewelType, socketId));
+  if (!table) return undefined;
+  const ids = new Set<number>();
+  for (const map of table.bySeedIndex) {
+    for (const id of map.keys()) ids.add(id);
+  }
+  return Array.from(ids);
+}
+
+const apaStatKeysCache = new Map<number, number[]>();
+const apsStatKeysCache = new Map<number, number[]>();
+
+function statKeysForComponent(comp: AbyssComponent): number[] {
+  if (comp.kind === 1) {
+    let keys = apsStatKeysCache.get(comp.key);
+    if (keys) return keys;
+    const skill = normalizeAlternatePassiveSkill(
+      getData().GetAlternatePassiveSkillByIndex(comp.key),
+      comp.key,
+    );
+    keys = skill?.StatsKeys ?? [];
+    apsStatKeysCache.set(comp.key, keys);
+    return keys;
+  }
+  let keys = apaStatKeysCache.get(comp.key);
+  if (keys) return keys;
+  const addition = getData().GetAlternatePassiveAdditionByIndex(comp.key) as
+    | { StatsKeys?: unknown; statsKeys?: unknown }
+    | undefined;
+  keys =
+    coerceStatKeysList(addition?.StatsKeys ?? addition?.statsKeys) ?? [];
+  apaStatKeysCache.set(comp.key, keys);
+  return keys;
+}
+
+function collectStatRollsFromMods(
+  mods: AbyssNodeMods,
+  statMap: Set<number>,
+): Record<number, number> | null {
+  const out: Record<number, number> = {};
+  let matched = false;
+  for (const comp of mods.components) {
+    const keys = statKeysForComponent(comp);
+    if (!keys.length) continue;
+    if (!keys.some((k) => statMap.has(k))) continue;
+    matched = true;
+    keys.forEach((k, i) => {
+      const roll = comp.rolls[i];
+      if (roll != null) out[k] = roll;
+    });
+  }
+  return matched ? out : null;
+}
+
+function yieldToUi(): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, 0);
+  });
+}
+
+/**
+ * Reverse search по LUT глаза (7–10): seed → passive_skills._key → stat._key → roll.
+ * Не использует круговой радиус и Go-калькулятор timeless.
+ * Чанками отдаёт управление UI (прелоадер).
+ */
+export async function reverseSearchAbyssEyeLut(
+  socketId: number,
+  jewelType: number,
+  searchedStatIds: number[],
+  disabledTreeSkills: ReadonlySet<number>,
+  treeSkillToPassiveIndex: (treeSkillId: number) => number | undefined,
+  onProgress?: (seed: number) => void,
+): Promise<Record<number, Record<number, Record<number, number>>>> {
+  const table = cache.get(cacheKey(jewelType, socketId));
+  if (!table || !searchedStatIds.length) return {};
+  const statMap = new Set(searchedStatIds);
+  const results: Record<number, Record<number, Record<number, number>>> = {};
+  const chunk = 48;
+
+  for (let si = 0; si < table.bySeedIndex.length; si++) {
+    const map = table.bySeedIndex[si];
+    if (map?.size) {
+      const seed = table.seedMin + si * table.seedInc;
+      for (const [treeSkillId, mods] of map) {
+        if (disabledTreeSkills.has(treeSkillId)) continue;
+        const rolls = collectStatRollsFromMods(mods, statMap);
+        if (!rolls) continue;
+        const passiveIndex = treeSkillToPassiveIndex(treeSkillId);
+        if (passiveIndex == null) continue;
+        if (!results[seed]) results[seed] = {};
+        results[seed][passiveIndex] = {
+          ...(results[seed][passiveIndex] ?? {}),
+          ...rolls,
+        };
+      }
+      if (si % chunk === 0) {
+        onProgress?.(seed);
+        await yieldToUi();
+      }
+    } else if (si % chunk === 0) {
+      await yieldToUi();
+    }
+  }
+  return results;
+}
+
+/**
+ * Reverse search по LUT Zorath (11): ноды на пути к старту класса (+ ascendancy pick).
+ */
+export async function reverseSearchZorathLut(
+  treeNodes: Record<string, Node>,
+  socketId: number,
+  classStartIndex: number,
+  ascendancyName: string | undefined,
+  searchedStatIds: number[],
+  disabledTreeSkills: ReadonlySet<number>,
+  treeSkillToPassiveIndex: (treeSkillId: number) => number | undefined,
+  onProgress?: (seed: number) => void,
+): Promise<Record<number, Record<number, Record<number, number>>>> {
+  const table = zorathTable;
+  if (!table || !searchedStatIds.length) return {};
+  const statMap = new Set(searchedStatIds);
+  const path = shortestPathToClassStart(
+    treeNodes,
+    socketId,
+    classStartIndex,
+  ).filter((id) => id !== socketId);
+  const results: Record<number, Record<number, Record<number, number>>> = {};
+  const chunk = 48;
+
+  for (let si = 0; si < table.seedCount; si++) {
+    const seed = table.seedMin + si * table.seedInc;
+    const nodeIds = new Set<number>();
+    for (const id of path) {
+      if (table.nodeIds.has(id)) nodeIds.add(id);
+    }
+    if (ascendancyName) {
+      for (const id of readZorathAscendancyPicks(table, ascendancyName, si)) {
+        nodeIds.add(id);
+      }
+    }
+    for (const treeSkillId of nodeIds) {
+      if (disabledTreeSkills.has(treeSkillId)) continue;
+      const mods = readZorathNodeMods(table, treeSkillId, si);
+      if (!mods) continue;
+      const rolls = collectStatRollsFromMods(mods, statMap);
+      if (!rolls) continue;
+      const passiveIndex = treeSkillToPassiveIndex(treeSkillId);
+      if (passiveIndex == null) continue;
+      if (!results[seed]) results[seed] = {};
+      results[seed][passiveIndex] = {
+        ...(results[seed][passiveIndex] ?? {}),
+        ...rolls,
+      };
+    }
+    if (si % chunk === 0) {
+      onProgress?.(seed);
+      await yieldToUi();
+    }
+  }
+  return results;
+}
+
 /**
  * Zorath affected skills: path nodes present in LUT + ascendancy seed pick.
  * Returns undefined while LUT is still loading (caller may still show path-only).
