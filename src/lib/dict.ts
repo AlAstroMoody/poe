@@ -195,19 +195,7 @@ export function formatRuStatLineFromWasm(
   wasmEnText: string,
   rollValues: number[],
 ): string | undefined {
-  let template =
-    statNamesRuByStringId[wasmStatId] ||
-    statNamesRuReducedByStringId[wasmStatId];
-  if (!template && wasmEnText) {
-    const isReduced = /reduced|less\s/i.test(wasmEnText);
-    const skeleton = displayStringToSkeleton(wasmEnText);
-    const mappedId = statStringToId[skeleton];
-    if (mappedId) {
-      template =
-        (isReduced && statNamesRuReducedByStringId[mappedId]) ||
-        statNamesRuByStringId[mappedId];
-    }
-  }
+  const template = resolveRuStatTemplate(wasmStatId, wasmEnText);
   if (!template) return undefined;
   return formatStatTemplate(template, rollValues);
 }
@@ -251,6 +239,67 @@ export function formatStatTemplate(
     String(rolls[Number(n)] ?? "#"),
   );
   return stripStatDescriptionMarkup(filled);
+}
+
+/** Сколько слотов `{0}`…`{n}` в шаблоне (max index + 1). */
+export function countStatTemplateSlots(template: string): number {
+  let max = -1;
+  for (const m of template.matchAll(/\{(\d+)(?::[^}]*)?\}/g)) {
+    max = Math.max(max, Number(m[1]));
+  }
+  return max + 1;
+}
+
+/**
+ * Min/max added damage и т.п.: несколько StatsKeys делят один шаблон с `{0}`/`{1}`.
+ * Склеивает подряд идущие записи с одинаковым шаблоном в одну группу под все слоты.
+ */
+export function groupEntriesByStatTemplate<T>(
+  entries: T[],
+  getTemplate: (entry: T) => string | undefined,
+): { template: string | undefined; entries: T[] }[] {
+  const groups: { template: string | undefined; entries: T[] }[] = [];
+  let i = 0;
+  while (i < entries.length) {
+    const template = getTemplate(entries[i]);
+    const slots = template ? countStatTemplateSlots(template) : 1;
+    if (!template || slots <= 1) {
+      groups.push({ template, entries: [entries[i]] });
+      i += 1;
+      continue;
+    }
+    const chunk: T[] = [entries[i]];
+    let j = i + 1;
+    while (chunk.length < slots && j < entries.length) {
+      if (getTemplate(entries[j]) !== template) break;
+      chunk.push(entries[j]);
+      j += 1;
+    }
+    groups.push({ template, entries: chunk });
+    i = j;
+  }
+  return groups;
+}
+
+/** RU-шаблон стата по id (и при необходимости по EN-тексту из WASM). */
+export function resolveRuStatTemplate(
+  wasmStatId: string,
+  wasmEnText = "",
+): string | undefined {
+  let template =
+    statNamesRuByStringId[wasmStatId] ||
+    statNamesRuReducedByStringId[wasmStatId];
+  if (!template && wasmEnText) {
+    const isReduced = /reduced|less\s/i.test(wasmEnText);
+    const skeleton = displayStringToSkeleton(wasmEnText);
+    const mappedId = statStringToId[skeleton];
+    if (mappedId) {
+      template =
+        (isReduced && statNamesRuReducedByStringId[mappedId]) ||
+        statNamesRuByStringId[mappedId];
+    }
+  }
+  return template;
 }
 
 /**

@@ -49,6 +49,8 @@ import {
   statIdByRuName,
   ui,
   stripStatDescriptionMarkup,
+  groupEntriesByStatTemplate,
+  resolveRuStatTemplate,
 } from "@/lib/dict";
 import { BASE_DATA_URL } from "@/config";
 import { isTreeDebugEnabled, treeDebugLog } from "@/lib/treeDebug";
@@ -208,6 +210,93 @@ function wasmStatRoll(
   const pick = a !== undefined ? a : rolls[i as unknown as keyof typeof rolls];
   if (typeof pick !== "number") return undefined;
   return coerceSignedStatRoll(pick);
+}
+
+type WasmStatLine = {
+  text: string;
+  firstIndex: number;
+  stringId: string;
+  enText: string;
+};
+
+/**
+ * Собирает строки тултипа из StatsKeys + роллов.
+ * Min/max (общий шаблон `{0}`/`{1}`) склеиваются в одну строку.
+ */
+function formatLinesFromStatKeys(
+  keys: number[],
+  getRoll: (i: number) => number | undefined,
+  lang: "ru" | "en",
+  context: string,
+): WasmStatLine[] {
+  type Prep = {
+    index: number;
+    stat: { ID: string; Text: string };
+    displayRoll?: number;
+    rawRoll?: number;
+  };
+  const prepared: Prep[] = keys.map((statId, i) => {
+    const stat = wasmStatRow(statId, `${context} i=${i}`);
+    const rawRoll = getRoll(i);
+    const displayRoll =
+      rawRoll != null
+        ? displayRollForStatTemplate(stat.ID, rawRoll)
+        : undefined;
+    return { index: i, stat, displayRoll, rawRoll };
+  });
+
+  const resolveTemplate = (p: Prep): string | undefined => {
+    if (lang === "ru") return resolveRuStatTemplate(p.stat.ID, p.stat.Text);
+    if (p.stat.Text && /\{\d+\}/.test(p.stat.Text)) return p.stat.Text;
+    return statTemplatesEnByStringId[p.stat.ID];
+  };
+
+  const out: WasmStatLine[] = [];
+  for (const group of groupEntriesByStatTemplate(prepared, resolveTemplate)) {
+    const first = group.entries[0]!;
+    const rolls = group.entries.map((e) => e.displayRoll);
+    let text: string;
+    if (group.template) {
+      text = formatStatTemplate(group.template, rolls);
+    } else {
+      const roll = first.rawRoll;
+      const tr = inverseTranslations[first.stat.ID];
+      if (lang === "ru") {
+        const rollArr =
+          first.displayRoll != null ? [first.displayRoll] : [];
+        const ruLine = formatRuStatLineFromWasm(
+          first.stat.ID,
+          first.stat.Text,
+          rollArr,
+        );
+        if (ruLine) text = ruLine;
+        else if (tr)
+          text =
+            (roll != null ? formatStats(tr, roll) : first.stat.ID) ||
+            first.stat.ID;
+        else {
+          text = translateStat(keys[first.index]!, roll, lang);
+          if (text === first.stat.ID)
+            text = statIdToDisplayFallback(first.stat.ID);
+        }
+      } else if (tr) {
+        text =
+          (roll != null ? formatStats(tr, roll) : first.stat.ID) ||
+          first.stat.ID;
+      } else {
+        text = translateStat(keys[first.index]!, roll, lang);
+        if (text === first.stat.ID)
+          text = statIdToDisplayFallback(first.stat.ID);
+      }
+    }
+    out.push({
+      text,
+      firstIndex: first.index,
+      stringId: first.stat.ID,
+      enText: first.stat.Text,
+    });
+  }
+  return out;
 }
 
 const jewelRadius = computed(() => baseJewelRadius / scaling.value);
@@ -891,31 +980,23 @@ function render() {
 
           // 1) Есть StatsKeys из WASM — берём stat по индексу, ключ stat.ID, перевод только из словаря по id.
           if (statsKeysFromWasm && statsKeysFromWasm.length > 0) {
-            statsKeysFromWasm.forEach((statIndex, i) => {
-              const stat = wasmStatRow(
-                statIndex,
-                `tooltip originals graphSkill=${skill} i=${i}`,
-              );
-              const rawLine = originals[i];
-              const m = rawLine?.match(/([+-]?\d+(?:\.\d+)?)/);
-              const roll = m ? parseFloat(m[1]) : undefined;
-              const rolls = roll != null ? [roll] : [];
-              let text: string;
-              if (lang === "ru") {
-                const template = statNamesRuByStringId[stat.ID];
-                text = template
-                  ? formatStatTemplate(template, rolls)
-                  : statIdToDisplayFallback(stat.ID);
-              } else {
-                const template =
-                  (stat.Text && /\{\d+\}/.test(stat.Text) ? stat.Text : null) ??
-                  statTemplatesEnByStringId[stat.ID];
-                text = template
-                  ? formatStatTemplate(template, rolls)
-                  : statIdToDisplayFallback(stat.ID);
-              }
-              nodeStats.push({ text, special: false });
-            });
+            const origRolls =
+              originals.length === 1 && statsKeysFromWasm.length > 1
+                ? extractRollsFromDisplayString(originals[0] ?? "")
+                : null;
+            for (const line of formatLinesFromStatKeys(
+              statsKeysFromWasm,
+              (i) => {
+                if (origRolls && i < origRolls.length) return origRolls[i];
+                const rawLine = originals[i];
+                const m = rawLine?.match(/([+-]?\d+(?:\.\d+)?)/);
+                return m ? parseFloat(m[1]) : undefined;
+              },
+              lang,
+              `tooltip originals graphSkill=${skill}`,
+            )) {
+              nodeStats.push({ text: line.text, special: false });
+            }
           } else {
             // 2) Нет WASM StatsKeys — ищем ключ по полному тексту (строки как один блок), потом перевод по id.
             let statId = getStatIdFromDisplayLines(originals);
@@ -1103,76 +1184,33 @@ function render() {
               });
             });
           } else {
-            altSkill.StatsKeys?.forEach((statId, i) => {
-              const stat = wasmStatRow(
-                statId,
-                `AlternatePassiveSkill id=${altId} graphSkill=${hoveredNode.value?.skill} i=${i}`,
-              );
-              const tr = inverseTranslations[stat.ID];
-              const roll = wasmStatRoll(result?.StatRolls, i);
-              const lang = currentLang;
-              let text: string;
-              if (lang === "ru") {
-                const displayRoll =
-                  roll != null
-                    ? displayRollForStatTemplate(stat.ID, roll)
-                    : undefined;
-                const rollArr = displayRoll != null ? [displayRoll] : [];
-                const ruLine = formatRuStatLineFromWasm(
-                  stat.ID,
-                  stat.Text,
-                  rollArr,
-                );
-                if (ruLine) {
-                  text = ruLine;
-                } else if (tr)
-                  text =
-                    (roll != null ? formatStats(tr, roll) : stat.ID) || stat.ID;
-                else if (stat.Text && /\{\d+\}/.test(stat.Text))
-                  text = formatStatTemplate(
-                    stat.Text,
-                    roll != null ? [roll] : [],
-                  );
-                else if (statTemplatesEnByStringId[stat.ID])
-                  text = formatStatTemplate(
-                    statTemplatesEnByStringId[stat.ID],
-                    roll != null ? [roll] : [],
-                  );
-                else {
-                  text = translateStat(statId, roll);
-                  if (text === stat.ID) text = statIdToDisplayFallback(stat.ID);
-                }
-              } else if (tr)
-                text =
-                  (roll != null ? formatStats(tr, roll) : stat.ID) || stat.ID;
-              else if (stat.Text && /\{\d+\}/.test(stat.Text))
-                text = formatStatTemplate(
-                  stat.Text,
-                  roll != null ? [roll] : [],
-                );
-              else if (statTemplatesEnByStringId[stat.ID])
-                text = formatStatTemplate(
-                  statTemplatesEnByStringId[stat.ID],
-                  roll != null ? [roll] : [],
-                );
-              else {
-                text = translateStat(statId, roll);
-                if (text === stat.ID) text = statIdToDisplayFallback(stat.ID);
-              }
-              const keysLenAlt = altSkill.StatsKeys?.length ?? 0;
+            const altKeys = altSkill.StatsKeys ?? [];
+            const lang = currentLang;
+            for (const line of formatLinesFromStatKeys(
+              altKeys,
+              (i) => wasmStatRoll(result?.StatRolls, i),
+              lang,
+              `AlternatePassiveSkill id=${altId} graphSkill=${hoveredNode.value?.skill}`,
+            )) {
+              let text = line.text;
+              const keysLenAlt = altKeys.length;
               const treeLinesAlt = skipSkillTreeLineFallbackForAltBody
                 ? null
                 : graphAlternateStatLinesFromSkillTree(
                     hoveredNode.value?.skill,
                     hoveredNode.value,
                     lang,
-                    i,
+                    line.firstIndex,
                     keysLenAlt,
                   );
               if (
                 treeLinesAlt &&
                 hoveredNode.value &&
-                tooltipTextLooksLikeUnresolvedStatSlug(text, stat.ID, stat.Text)
+                tooltipTextLooksLikeUnresolvedStatSlug(
+                  text,
+                  line.stringId,
+                  line.enText,
+                )
               ) {
                 text = treeLinesAlt;
               }
@@ -1180,7 +1218,7 @@ function render() {
                 text,
                 special: !isHeroicTragedyNotableReplace,
               });
-            });
+            }
           }
           // Zorath APS: если StatsKeys не отрисовались — возьмём текст из словаря по id.
           if (useFullAltReplace && nodeStats.length === 0 && altSkill.ID) {
@@ -1223,42 +1261,14 @@ function render() {
             Object.keys(rolls).length >= statsKeys.length
           ) {
             nodeStats = [];
-            statsKeys.forEach((statIndex, i) => {
-              const stat = wasmStatRow(
-                statIndex,
-                `empty alt fallback graphSkill=${hoveredNode.value?.skill} i=${i}`,
-              );
-              const roll = wasmStatRoll(rolls, i);
-              const rollArr =
-                roll != null ? [displayRollForStatTemplate(stat.ID, roll)] : [];
-              let text: string;
-              if (currentLang === "ru") {
-                const ruLine = formatRuStatLineFromWasm(
-                  stat.ID,
-                  stat.Text,
-                  rollArr,
-                );
-                if (ruLine) {
-                  text = ruLine;
-                } else {
-                  const template =
-                    (stat.Text && /\{\d+\}/.test(stat.Text)
-                      ? stat.Text
-                      : null) ?? statTemplatesEnByStringId[stat.ID];
-                  text = template
-                    ? formatStatTemplate(template, rollArr)
-                    : statIdToDisplayFallback(stat.ID);
-                }
-              } else {
-                const template =
-                  (stat.Text && /\{\d+\}/.test(stat.Text) ? stat.Text : null) ??
-                  statTemplatesEnByStringId[stat.ID];
-                text = template
-                  ? formatStatTemplate(template, rollArr)
-                  : statIdToDisplayFallback(stat.ID);
-              }
-              nodeStats.push({ text, special: false });
-            });
+            for (const line of formatLinesFromStatKeys(
+              statsKeys,
+              (i) => wasmStatRoll(rolls, i),
+              currentLang,
+              `empty alt fallback graphSkill=${hoveredNode.value?.skill}`,
+            )) {
+              nodeStats.push({ text: line.text, special: false });
+            }
             if (ruNodeFallback?.name) nodeName = ruNodeFallback.name;
           } else {
             if (ruNodeFallback?.name) nodeName = ruNodeFallback.name;
@@ -1271,80 +1281,35 @@ function render() {
         }
         if (!isHeroicTragedyNotableReplace) {
           result?.AlternatePassiveAdditionInformations?.forEach((info) => {
-            info.AlternatePassiveAddition?.StatsKeys?.forEach((statId, i) => {
-              const stat = wasmStatRow(
-                statId,
-                `AlternatePassiveAddition graphSkill=${hoveredNode.value?.skill} i=${i}`,
-              );
-              const tr = inverseTranslations[stat.ID];
-              const roll = wasmStatRoll(info.StatRolls, i);
-              const lang = currentLang;
-              let text: string;
-              if (lang === "ru") {
-                const displayRoll =
-                  roll != null
-                    ? displayRollForStatTemplate(stat.ID, roll)
-                    : undefined;
-                const rollArr = displayRoll != null ? [displayRoll] : [];
-                const ruLine = formatRuStatLineFromWasm(
-                  stat.ID,
-                  stat.Text,
-                  rollArr,
-                );
-                if (ruLine) {
-                  text = ruLine;
-                } else if (tr)
-                  text =
-                    (roll != null ? formatStats(tr, roll) : stat.ID) || stat.ID;
-                else if (stat.Text && /\{\d+\}/.test(stat.Text))
-                  text = formatStatTemplate(
-                    stat.Text,
-                    roll != null ? [roll] : [],
-                  );
-                else if (statTemplatesEnByStringId[stat.ID])
-                  text = formatStatTemplate(
-                    statTemplatesEnByStringId[stat.ID],
-                    roll != null ? [roll] : [],
-                  );
-                else {
-                  text = translateStat(statId, roll);
-                  if (text === stat.ID) text = statIdToDisplayFallback(stat.ID);
-                }
-              } else if (tr)
-                text =
-                  (roll != null ? formatStats(tr, roll) : stat.ID) || stat.ID;
-              else if (stat.Text && /\{\d+\}/.test(stat.Text))
-                text = formatStatTemplate(
-                  stat.Text,
-                  roll != null ? [roll] : [],
-                );
-              else if (statTemplatesEnByStringId[stat.ID])
-                text = formatStatTemplate(
-                  statTemplatesEnByStringId[stat.ID],
-                  roll != null ? [roll] : [],
-                );
-              else {
-                text = translateStat(statId, roll);
-                if (text === stat.ID) text = statIdToDisplayFallback(stat.ID);
-              }
-              const keysLenAdd =
-                info.AlternatePassiveAddition?.StatsKeys?.length ?? 0;
+            const addKeys = info.AlternatePassiveAddition?.StatsKeys ?? [];
+            const lang = currentLang;
+            for (const line of formatLinesFromStatKeys(
+              addKeys,
+              (i) => wasmStatRoll(info.StatRolls, i),
+              lang,
+              `AlternatePassiveAddition graphSkill=${hoveredNode.value?.skill}`,
+            )) {
+              let text = line.text;
               const treeLinesAdd = graphAlternateStatLinesFromSkillTree(
                 hoveredNode.value?.skill,
                 hoveredNode.value,
                 lang,
-                i,
-                keysLenAdd,
+                line.firstIndex,
+                addKeys.length,
               );
               if (
                 treeLinesAdd &&
                 hoveredNode.value &&
-                tooltipTextLooksLikeUnresolvedStatSlug(text, stat.ID, stat.Text)
+                tooltipTextLooksLikeUnresolvedStatSlug(
+                  text,
+                  line.stringId,
+                  line.enText,
+                )
               ) {
                 text = treeLinesAdd;
               }
               nodeStats.push({ text, special: true });
-            });
+            }
           });
         }
 
