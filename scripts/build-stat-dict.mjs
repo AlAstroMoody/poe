@@ -2,8 +2,10 @@
 /**
  * Собирает словарь переводов статов и названий нод из src/temp/ (ru и en) и public/data.
  * Только строковые id статов, без индексов.
- * Запуск из корня frontend-vue: node scripts/build-stat-dict.mjs (или npm run build:dict).
- * Результат: src/lib/*.generated.ts
+ * По умолчанию runtime-словари режутся до id, нужных калькулятору/дереву
+ * (passive на SkillTree + APS/APA + possible_stats + min/max пары).
+ * Полный словарь: FULL_STAT_DICT=1 npm run build:dict
+ * Запуск: npm run build:dict → src/lib/*.generated.ts
  */
 
 import { readFileSync, writeFileSync, existsSync } from "fs";
@@ -15,8 +17,10 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const TEMP_RU = join(ROOT, "src", "temp", "ru");
 const TEMP_EN = join(ROOT, "src", "temp", "en");
 const PUBLIC_DATA = join(ROOT, "public", "data");
+const DATA = join(ROOT, "data");
 const OUT_DIR = join(ROOT, "src", "lib");
 const OUT_FILE = join(OUT_DIR, "statNamesRu.generated.ts");
+const TRIM_RUNTIME_DICT = process.env.FULL_STAT_DICT !== "1";
 
 /** Прочитать JSON или gzip JSON */
 function loadJson(path) {
@@ -24,6 +28,142 @@ function loadJson(path) {
     ? gunzipSync(readFileSync(path)).toString("utf8")
     : readFileSync(path, "utf8");
   return JSON.parse(raw);
+}
+
+/** Первый существующий путь из списка. */
+function loadJsonFirst(paths) {
+  for (const p of paths) {
+    if (existsSync(p)) return loadJson(p);
+  }
+  return null;
+}
+
+/**
+ * String id статов, нужные runtime (тултипы дерева, timeless/abyss, possible_stats).
+ * @returns {{ keepStatIds: Set<string>, apsIds: Set<string>, treeGraphIds: Set<number> }}
+ */
+function collectRuntimeKeepSets() {
+  const keepStatIds = new Set();
+  const apsIds = new Set();
+  const treeGraphIds = new Set();
+
+  const statsRows = loadJsonFirst([
+    join(DATA, "stats.json.gz"),
+    join(DATA, "stats.json"),
+  ]);
+  if (!Array.isArray(statsRows)) {
+    console.warn("trim: stats.json(.gz) missing — skip runtime trim");
+    return null;
+  }
+  const idByKey = new Map();
+  const allStringIds = new Set();
+  for (const row of statsRows) {
+    const key = row?._key;
+    const id = row?.Id ?? row?.ID;
+    if (key == null || typeof id !== "string" || !id) continue;
+    idByKey.set(Number(key), id);
+    allStringIds.add(id);
+  }
+  const addStatKey = (k) => {
+    const id = idByKey.get(Number(k));
+    if (id) keepStatIds.add(id);
+  };
+
+  const skillTree = loadJsonFirst([
+    join(DATA, "SkillTree.json.gz"),
+    join(DATA, "SkillTree.json"),
+  ]);
+  if (skillTree?.nodes) {
+    for (const n of Object.values(skillTree.nodes)) {
+      if (n?.skill != null) treeGraphIds.add(Number(n.skill));
+    }
+  }
+
+  const passiveSkills = loadJsonFirst([
+    join(DATA, "passive_skills.json.gz"),
+    join(DATA, "passive_skills.json"),
+  ]);
+  if (Array.isArray(passiveSkills)) {
+    for (const row of passiveSkills) {
+      const gid = row.PassiveSkillGraphId ?? row.PassiveSkillGraphID;
+      if (gid == null || !treeGraphIds.has(Number(gid))) continue;
+      for (const k of row.Stats || row.StatsKeys || row.StatIndices || []) {
+        addStatKey(k);
+      }
+    }
+  }
+
+  const aps = loadJsonFirst([
+    join(DATA, "alternate_passive_skills.json.gz"),
+    join(DATA, "alternate_passive_skills.json"),
+  ]);
+  if (Array.isArray(aps)) {
+    for (const row of aps) {
+      if (row?.Id) apsIds.add(row.Id);
+      for (const k of row.StatsKeys || []) addStatKey(k);
+    }
+  }
+
+  const apa = loadJsonFirst([
+    join(DATA, "alternate_passive_additions.json.gz"),
+    join(DATA, "alternate_passive_additions.json"),
+  ]);
+  if (Array.isArray(apa)) {
+    for (const row of apa) {
+      for (const k of row.StatsKeys || []) addStatKey(k);
+    }
+  }
+
+  const possible = loadJsonFirst([
+    join(DATA, "possible_stats.json.gz"),
+    join(DATA, "possible_stats.json"),
+  ]);
+  if (possible && typeof possible === "object") {
+    for (const byJewel of Object.values(possible)) {
+      if (!byJewel || typeof byJewel !== "object") continue;
+      for (const k of Object.keys(byJewel)) addStatKey(k);
+    }
+  }
+
+  // Zorath ascendancy fallbacks in abyssAffectedNodes.ts
+  for (const k of [23251, 23252, 23253, 23254]) addStatKey(k);
+
+  // Min/max added damage: оба id шаблона «от {0} до {1}»
+  const pairExtra = [];
+  for (const id of keepStatIds) {
+    for (const [a, b] of [
+      ["minimum_added", "maximum_added"],
+      ["_minimum_", "_maximum_"],
+    ]) {
+      if (id.includes(a)) {
+        const o = id.replace(a, b);
+        if (allStringIds.has(o)) pairExtra.push(o);
+      }
+      if (id.includes(b)) {
+        const o = id.replace(b, a);
+        if (allStringIds.has(o)) pairExtra.push(o);
+      }
+    }
+  }
+  for (const id of pairExtra) keepStatIds.add(id);
+
+  return { keepStatIds, apsIds, treeGraphIds };
+}
+
+function filterRecordByKeys(obj, keepKey) {
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (keepKey(k, v)) out[k] = v;
+  }
+  return out;
+}
+
+function filterMapByKeys(map, keepKey) {
+  const out = new Map();
+  for (const [k, v] of map) {
+    if (keepKey(k, v)) out.set(k, v);
+  }
+  return out;
 }
 
 function stripParens(s) {
@@ -342,8 +482,8 @@ function fillEnFromDescriptors(obj, stringIdToEnTemplate, skeletonToIdArrays) {
 }
 
 function main() {
-  const stringIdToRu = new Map();
-  const stringIdToRuReduced = new Map();
+  let stringIdToRu = new Map();
+  let stringIdToRuReduced = new Map();
 
   // 1) Descriptors RU only — EN must not seed stringIdToRu (shorter RU cannot overwrite).
   const descFiles = [
@@ -507,7 +647,78 @@ function main() {
     }
   }
   // Выбираем по одному id на скелетон: приоритет у id, для которых есть перевод (пассивное дерево и т.д.).
-  const skeletonToId = resolveSkeletonToId(skeletonToIdArrays, stringIdToRu);
+  let skeletonToId = resolveSkeletonToId(skeletonToIdArrays, stringIdToRu);
+
+  // Runtime trim: не тащим весь RePoE в TreeView-чанк.
+  if (TRIM_RUNTIME_DICT) {
+    const keepSets = collectRuntimeKeepSets();
+    if (keepSets) {
+      const { keepStatIds, apsIds, treeGraphIds } = keepSets;
+      // Ручные оверрайды и уже попавшие в maps id всегда оставляем, если есть в keep — плюс сами ключи оверрайдов.
+      const manualOverridesPath = join(TEMP_RU, "stat_names_ru_manual_overrides.json");
+      if (existsSync(manualOverridesPath)) {
+        const ov = loadJson(manualOverridesPath);
+        for (const key of Object.keys(ov?.statNamesRuByStringId || {})) {
+          keepStatIds.add(key);
+        }
+        for (const key of Object.keys(ov?.statNamesRuReducedByStringId || {})) {
+          keepStatIds.add(key);
+        }
+      }
+      for (const id of stringIdToRu.keys()) {
+        if (id.startsWith("keystone_")) keepStatIds.add(id);
+      }
+
+      const before = {
+        ru: stringIdToRu.size,
+        reduced: stringIdToRuReduced.size,
+        skel: Object.keys(skeletonToId).length,
+        en: Object.keys(stringIdToEnTemplate).length,
+        names: Object.keys(passiveNamesRuById).length,
+        byGraph: Object.keys(passiveSkillGraphIdToNameRu).length,
+        byRu: Object.keys(statIdByRuName).length,
+      };
+
+      stringIdToRu = filterMapByKeys(stringIdToRu, (id) => keepStatIds.has(id));
+      stringIdToRuReduced = filterMapByKeys(stringIdToRuReduced, (id) =>
+        keepStatIds.has(id),
+      );
+      skeletonToId = filterRecordByKeys(skeletonToId, (_sk, id) =>
+        keepStatIds.has(id),
+      );
+      for (const id of Object.keys(stringIdToEnTemplate)) {
+        if (!keepStatIds.has(id)) delete stringIdToEnTemplate[id];
+      }
+      for (const id of Object.keys(passiveNamesRuById)) {
+        if (
+          !apsIds.has(id) &&
+          !keepStatIds.has(id) &&
+          !id.startsWith("keystone_") &&
+          !id.startsWith("abyss_")
+        ) {
+          delete passiveNamesRuById[id];
+        }
+      }
+      for (const key of Object.keys(passiveSkillGraphIdToNameRu)) {
+        const gid = Number(key);
+        if (!treeGraphIds.has(gid)) delete passiveSkillGraphIdToNameRu[key];
+      }
+      for (const [ruName, id] of Object.entries(statIdByRuName)) {
+        if (!keepStatIds.has(id) && !String(id).startsWith("keystone_")) {
+          delete statIdByRuName[ruName];
+        }
+      }
+
+      console.log(
+        `Runtime dict trim: keep ${keepStatIds.size} stat ids, ${apsIds.size} APS names, ${treeGraphIds.size} tree graph ids`,
+      );
+      console.log(
+        `  ru ${before.ru}→${stringIdToRu.size}, reduced ${before.reduced}→${stringIdToRuReduced.size}, skeleton ${before.skel}→${Object.keys(skeletonToId).length}, en ${before.en}→${Object.keys(stringIdToEnTemplate).length}, names ${before.names}→${Object.keys(passiveNamesRuById).length}, graph ${before.byGraph}→${Object.keys(passiveSkillGraphIdToNameRu).length}, ruName ${before.byRu}→${Object.keys(statIdByRuName).length}`,
+      );
+    }
+  } else {
+    console.log("FULL_STAT_DICT=1 — runtime trim skipped");
+  }
 
   const countStringId = stringIdToRu.size;
   const countPassiveNamesById = Object.keys(passiveNamesRuById).length;
