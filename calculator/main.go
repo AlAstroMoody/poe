@@ -120,16 +120,22 @@ func ReverseSearch(passiveIDs []uint32, statIDs []uint32, timelessJewelType data
 			}
 
 			if result.AlternatePassiveSkill != nil {
-				for i, key := range result.AlternatePassiveSkill.StatsKeys {
+				keys := result.AlternatePassiveSkill.StatsKeys
+				matched := false
+				for _, key := range keys {
 					if _, ok := statMap[key]; ok {
-						if _, ok := results[realSeed]; !ok {
-							results[realSeed] = make(map[uint32]map[uint32]uint32)
-						}
-
-						if _, ok := results[realSeed][skill.Index]; !ok {
-							results[realSeed][skill.Index] = make(map[uint32]uint32)
-						}
-
+						matched = true
+						break
+					}
+				}
+				if matched {
+					if _, ok := results[realSeed]; !ok {
+						results[realSeed] = make(map[uint32]map[uint32]uint32)
+					}
+					if _, ok := results[realSeed][skill.Index]; !ok {
+						results[realSeed][skill.Index] = make(map[uint32]uint32)
+					}
+					for i, key := range keys {
 						if result.StatRolls != nil {
 							results[realSeed][skill.Index][key] = result.StatRolls[uint32(i)]
 						}
@@ -138,21 +144,29 @@ func ReverseSearch(passiveIDs []uint32, statIDs []uint32, timelessJewelType data
 			}
 
 			for _, augment := range result.AlternatePassiveAdditionInformations {
-				if augment.AlternatePassiveAddition != nil {
-					for i, key := range augment.AlternatePassiveAddition.StatsKeys {
-						if _, ok := statMap[key]; ok {
-							if _, ok := results[realSeed]; !ok {
-								results[realSeed] = make(map[uint32]map[uint32]uint32)
-							}
-
-							if _, ok := results[realSeed][skill.Index]; !ok {
-								results[realSeed][skill.Index] = make(map[uint32]uint32)
-							}
-
-							if augment.StatRolls != nil {
-								results[realSeed][skill.Index][key] = augment.StatRolls[uint32(i)]
-							}
-						}
+				if augment.AlternatePassiveAddition == nil {
+					continue
+				}
+				keys := augment.AlternatePassiveAddition.StatsKeys
+				matched := false
+				for _, key := range keys {
+					if _, ok := statMap[key]; ok {
+						matched = true
+						break
+					}
+				}
+				if !matched {
+					continue
+				}
+				if _, ok := results[realSeed]; !ok {
+					results[realSeed] = make(map[uint32]map[uint32]uint32)
+				}
+				if _, ok := results[realSeed][skill.Index]; !ok {
+					results[realSeed][skill.Index] = make(map[uint32]uint32)
+				}
+				for i, key := range keys {
+					if augment.StatRolls != nil {
+						results[realSeed][skill.Index][key] = augment.StatRolls[uint32(i)]
 					}
 				}
 			}

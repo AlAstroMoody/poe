@@ -16,6 +16,9 @@ import {
   passiveNamesRuById,
   passiveSkillGraphIdToNameRu,
   passiveNodeRu,
+  groupEntriesByStatTemplate,
+  resolveRuStatTemplate,
+  statTemplatesEnByStringId,
 } from "./dict";
 import {
   abyssAffectedEpoch,
@@ -584,6 +587,60 @@ export const translateStat = (
   return text;
 };
 
+/** Строки для Record стат→ролл: min/max с общим шаблоном склеиваются в одну. */
+export function translateStatRecord(
+  stats: Record<string, number>,
+  lang?: Lang,
+): string[] {
+  const effectiveLang = lang ?? getLanguage();
+  type Entry = {
+    id: number;
+    stringId: string;
+    enText: string;
+    roll: number;
+    displayRoll: number;
+  };
+  const entries: Entry[] = Object.keys(stats).map((k) => {
+    const id = parseInt(k, 10);
+    const roll = coerceSignedStatRoll(stats[k]!);
+    const stat = getStat(id);
+    return {
+      id,
+      stringId: stat.ID,
+      enText: stat.Text,
+      roll,
+      displayRoll: displayRollForStatTemplate(stat.ID, roll),
+    };
+  });
+
+  const resolveTemplate = (e: Entry): string | undefined => {
+    if (effectiveLang === "ru")
+      return resolveRuStatTemplate(e.stringId, e.enText);
+    if (e.enText && /\{\d+\}/.test(e.enText)) return e.enText;
+    return statTemplatesEnByStringId[e.stringId];
+  };
+
+  const lines: string[] = [];
+  for (const group of groupEntriesByStatTemplate(entries, resolveTemplate)) {
+    let text: string;
+    if (group.template) {
+      text = formatStatTemplate(
+        group.template,
+        group.entries.map((e) => e.displayRoll),
+      );
+    } else {
+      text = group.entries
+        .map((e) => translateStat(e.id, e.roll, effectiveLang))
+        .join("\n");
+    }
+    for (const line of text.replace(/\\n/g, "\n").split("\n")) {
+      const t = line.trim();
+      if (t) lines.push(t);
+    }
+  }
+  return lines;
+}
+
 export const translatePassiveSkillName = (
   passiveSkillGraphId: number,
   defaultName?: string,
@@ -665,6 +722,21 @@ const tradeStatNames: Record<number, Record<string, string>> = {
     "Celestial Mathematics": "explicit.pseudo_timeless_jewel_uhtred",
     "The Unbreaking Circle": "explicit.pseudo_timeless_jewel_medved",
   },
+  7: {
+    Tecrod: "explicit.pseudo_timeless_jewel_tecrod",
+  },
+  8: {
+    Ulaman: "explicit.pseudo_timeless_jewel_ulaman",
+  },
+  9: {
+    Kurgal: "explicit.pseudo_timeless_jewel_kurgal",
+  },
+  10: {
+    Amanamu: "explicit.pseudo_timeless_jewel_amanamu",
+  },
+  11: {
+    Zorath: "explicit.pseudo_timeless_jewel_zorath",
+  },
 };
 
 export const constructQuery = (
@@ -686,12 +758,17 @@ export const constructQuery = (
     disabled?: boolean;
   };
   const base: Q = { type: "count", value: { min: 1 }, filters: [] };
+  const byConqueror = tradeStatNames[jewel] ?? {};
+  const tradeIds = Object.keys(byConqueror);
+  const activeId = byConqueror[conqueror];
   let finalQuery: Q[];
-  if (result.length === 1) {
+  if (tradeIds.length === 0 || !activeId) {
+    finalQuery = [];
+  } else if (result.length === 1) {
     const s: Q = { ...base, filters: [] };
-    Object.keys(tradeStatNames[jewel]).forEach((conq) =>
+    tradeIds.forEach((conq) =>
       s.filters.push({
-        id: tradeStatNames[jewel][conq],
+        id: byConqueror[conq],
         value: { min: result[0].seed, max: result[0].seed },
         disabled: conq !== conqueror,
       }),
@@ -706,15 +783,15 @@ export const constructQuery = (
     result.slice(0, maxQuery).forEach((r, i) => {
       const idx = Math.floor(i / maxLen);
       finalQuery[idx].filters.push({
-        id: tradeStatNames[jewel][conqueror],
+        id: activeId,
         value: { min: r.seed, max: r.seed },
       });
     });
   } else {
-    finalQuery = Object.keys(tradeStatNames[jewel]).map((conq) => ({
+    finalQuery = tradeIds.map((conq) => ({
       ...base,
       filters: result.slice(0, maxLen).map((r) => ({
-        id: tradeStatNames[jewel][conq],
+        id: byConqueror[conq],
         value: { min: r.seed, max: r.seed },
       })),
       disabled: conq !== conqueror,

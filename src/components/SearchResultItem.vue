@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import type { Lang } from "@/lib/i18n";
 import type { SearchWithSeed } from "@/lib/skill_tree";
-import { openTrade, translateStat, translateTreeSkillName } from "@/lib/skill_tree";
+import {
+  openTrade,
+  translateStatRecord,
+  translateTreeSkillName,
+} from "@/lib/skill_tree";
 
 const props = defineProps<{
   set: SearchWithSeed;
@@ -20,14 +24,6 @@ function onHighlight() {
     props.set.seed,
     props.set.skills.map((s) => s.passive),
   );
-}
-
-function statLines(statId: string | number, roll: number): string[] {
-  return translateStat(Number(statId), roll, props.lang)
-    .replace(/\\n/g, "\n")
-    .split("\n")
-    .map((s) => s.trim())
-    .filter(Boolean);
 }
 </script>
 
@@ -71,14 +67,12 @@ function statLines(statId: string | number, roll: number): string[] {
           <span class="font-normal text-muted">({{ skill.passive }})</span>
         </p>
         <ul class="mt-1.5 space-y-0.5 border-l-2 border-accent/35 pl-2.5 text-sm leading-relaxed text-white/90">
-          <template v-for="(roll, statId) in skill.stats" :key="statId">
-            <li
-              v-for="(line, lineIdx) in statLines(statId, roll)"
-              :key="`${statId}-${lineIdx}`"
-            >
-              {{ line }}
-            </li>
-          </template>
+          <li
+            v-for="(line, lineIdx) in translateStatRecord(skill.stats, lang)"
+            :key="lineIdx"
+          >
+            {{ line }}
+          </li>
         </ul>
       </section>
     </div>
