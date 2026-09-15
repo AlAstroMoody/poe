@@ -646,6 +646,18 @@ function main() {
       break;
     }
   }
+  // Manual EN templates for stats missing from GGG descriptions (e.g. legion keystone_mental_conditioning).
+  {
+    const manualOverridesPath = join(TEMP_RU, "stat_names_ru_manual_overrides.json");
+    if (existsSync(manualOverridesPath)) {
+      const ov = loadJson(manualOverridesPath);
+      if (ov?.statTemplatesEnByStringId && typeof ov.statTemplatesEnByStringId === "object") {
+        for (const [key, val] of Object.entries(ov.statTemplatesEnByStringId)) {
+          if (key && typeof val === "string") stringIdToEnTemplate[key] = val;
+        }
+      }
+    }
+  }
   // Выбираем по одному id на скелетон: приоритет у id, для которых есть перевод (пассивное дерево и т.д.).
   let skeletonToId = resolveSkeletonToId(skeletonToIdArrays, stringIdToRu);
 
@@ -662,6 +674,9 @@ function main() {
           keepStatIds.add(key);
         }
         for (const key of Object.keys(ov?.statNamesRuReducedByStringId || {})) {
+          keepStatIds.add(key);
+        }
+        for (const key of Object.keys(ov?.statTemplatesEnByStringId || {})) {
           keepStatIds.add(key);
         }
       }

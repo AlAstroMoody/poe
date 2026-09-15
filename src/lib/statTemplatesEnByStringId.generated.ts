@@ -872,6 +872,7 @@ export const statTemplatesEnByStringIdGenerated: Record<string, string> = {
   "keystone_magnetic_charge": "Nearby Allies and Enemies Share Charges with you\nEnemies Hitting you have 10% chance to gain an Endurance, \nFrenzy or Power Charge",
   "keystone_mana_shield": "40% of Damage is taken from Mana before Life",
   "keystone_medveds_exchange": "40% less Ward\nWard has a 60% chance to not Break",
+  "keystone_mental_conditioning": "80% of Maximum Mana is Converted to twice that much Armour",
   "keystone_minion_instability": "Minions Explode when reduced to Low Life, dealing 33% of their Life as Fire Damage to surrounding Enemies",
   "keystone_miracle_of_thaumaturgy": "Removes all Energy Shield\nWhile not on Full Life, Sacrifice 20% of Mana per Second to Recover that much Life",
   "keystone_natures_presence": "Gain 2 Grasping Vines each second while stationary\n2% chance to deal Double Damage per Grasping Vine\n1% less Damage taken per Grasping Vine",

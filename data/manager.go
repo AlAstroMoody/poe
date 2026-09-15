@@ -66,9 +66,21 @@ func GetApplicableAlternatePassiveSkills(passiveSkill *PassiveSkill, timelessJew
 	return reverseAlternatePassiveSkills[GetPassiveSkillType(passiveSkill)][timelessJewel.AlternateTreeVersion.Index]
 }
 
+// IsSmallAttribute: мелкие ноды +str/+dex/+int на дереве.
+// Старый битмаск Vilsol (0x49 от ключа 574) указывал на 573/576/579 — с текущими
+// Stats.dat ключи другие, из‑за этого Militant Faith не заменял attribute-ноды.
 func IsSmallAttribute(stat uint32) bool {
-	bitPosition := (stat + 1) - 574
-	if bitPosition <= 6 && (0x49&(1<<(bitPosition))) != 0 {
+	s := idToStat[stat]
+	if s == nil {
+		switch stat {
+		case 574, 575, 577, 578, 580, 581:
+			return true
+		}
+		return false
+	}
+	switch s.ID {
+	case "base_strength", "base_dexterity", "base_intelligence",
+		"strength", "dexterity", "intelligence":
 		return true
 	}
 	return false

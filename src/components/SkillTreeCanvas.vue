@@ -106,6 +106,11 @@ const startY = ref(0);
 const slowTime = ref(0);
 let rafId = 0;
 let animFrame = 0;
+/** Активные pointer'ы для pan (1 палец / мышь). Pinch — через touch* ниже. */
+const activePointers = new Map<number, { x: number; y: number }>();
+let pinching = false;
+let pinchStartDist = 0;
+let pinchStartScale = 10;
 
 /** Кеш содержимого тултипа: пересчёт только при смене ноды/языка/камня. */
 type TooltipCache = {
@@ -930,9 +935,9 @@ function render() {
         }
       }
 
-      // Glorious Vanity (1) и Elegant Hubris (5) полностью заменяют описание ноды; кистоуны под самоцветом тоже только альтернатива, остальные ноды могут получать дополнение.
-      // Abyss eyes (7–10): мелкие — полная замена, крупные — только additions (без AlternatePassiveSkill).
-      // Zorath (11): ascendancy notable — полная замена APS; крупные на пути — additions.
+      // Glorious Vanity (1) / Elegant Hubris (5) — всегда replace. Lethal Pride / Brutal Restraint — база + additions.
+      // Militant Faith: attribute-small → APS (+10 devotion вместо стата); прочие small → база + APA (+5); notable — replace по весу или база + APA.
+      // Abyss eyes (7–10): мелкие APS, крупные только additions. Zorath (11): ascendancy APS; путь — additions.
       const isReplaceOnlyJewel =
         props.selectedJewel === 1 || props.selectedJewel === 5;
       const isAbyssEye = isAbyssTimelessJewel(jewelType);
@@ -962,7 +967,7 @@ function render() {
         const skill = hoveredNode.value.skill;
         const lang = currentLang;
         const ruNode = passiveNodeRu[String(skill)];
-        // RU: статы из лёгкого словаря. Для альтернативы под не replace-only (Lethal Pride, Brutal Restraint, Militant Faith) нода не меняется — только дополнения; базу берём из ruNode, потом дополним из AlternatePassiveAdditionInformations.
+        // RU: база из ruNode для jewel'ов с additions. Если калькулятор вернул APS — ниже очистим (useFullAltReplace).
         if (
           lang === "ru" &&
           ruNode?.stats?.length &&
@@ -1147,16 +1152,9 @@ function render() {
           (altSkill.Name != null ||
             altSkill.ID != null ||
             (altSkill.StatsKeys?.length ?? 0) > 0);
-        const useFullAltReplace =
-          !!hasMeaningfulAlt &&
-          (isReplaceOnlyJewel ||
-            isZorathAscendancyReplace ||
-            isKeystoneUnderJewel ||
-            isHeroicTragedyNotableReplace ||
-            // глаза: replace только на мелких; notable на пути — additions
-            (isAbyssEyeJewel(jewelType) && !hoveredNode.value?.isNotable) ||
-            // Zorath: любой APS (ascendancy + мелкие на пути)
-            (isAbyssSpecial && !!hasMeaningfulAlt));
+        // APS от калькулятора ⇒ нода заменена (IsPassiveSkillReplaced). Не оставлять оригинал
+        // (иначе Militant Faith attribute: «+10 сила» + «+10 набожность» вместо только набожности).
+        const useFullAltReplace = !!hasMeaningfulAlt;
         /** При полной замене тексты в SkillTree по skill id ещё старые — не подставлять их вместо WASM-статов. */
         const skipSkillTreeLineFallbackForAltBody = useFullAltReplace;
 
@@ -1402,22 +1400,162 @@ function updateMousePos(e: { clientX: number; clientY: number }) {
   mousePos.value = { x: e.clientX - rect.left, y: e.clientY - rect.top };
 }
 
-function onPointerDown(e: MouseEvent) {
+function clientToCanvas(clientX: number, clientY: number): Point {
+  const canvas = canvasRef.value;
+  if (!canvas) return { x: 0, y: 0 };
+  const rect = canvas.getBoundingClientRect();
+  return { x: clientX - rect.left, y: clientY - rect.top };
+}
+
+/** Зум к точке на канвасе. Больше scaling = дальше (как wheel). */
+function zoomAt(canvasX: number, canvasY: number, newScale: number) {
+  const old = scaling.value;
+  const next = Math.min(30, Math.max(3, newScale));
+  if (next === old) return;
+  offsetX.value += canvasX * (next - old);
+  offsetY.value += canvasY * (next - old);
+  scaling.value = next;
+}
+
+function activePointerDistance(): number {
+  const pts = [...activePointers.values()];
+  if (pts.length < 2) return 0;
+  return Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+}
+
+function activePointerMidClient(): Point {
+  const pts = [...activePointers.values()];
+  return {
+    x: (pts[0].x + pts[1].x) / 2,
+    y: (pts[0].y + pts[1].y) / 2,
+  };
+}
+
+function beginPanFromPointer(clientX: number, clientY: number) {
   down.value = true;
-  downX.value = e.clientX;
-  downY.value = e.clientY;
+  downX.value = clientX;
+  downY.value = clientY;
   startX.value = offsetX.value;
   startY.value = offsetY.value;
+}
+
+function touchDistance(t: TouchList): number {
+  if (t.length < 2) return 0;
+  return Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+}
+
+function touchMid(t: TouchList): Point {
+  return {
+    x: (t[0].clientX + t[1].clientX) / 2,
+    y: (t[0].clientY + t[1].clientY) / 2,
+  };
+}
+
+function beginPinchFromTouches(t: TouchList) {
+  pinching = true;
+  down.value = false;
+  activePointers.clear();
+  pinchStartDist = touchDistance(t);
+  pinchStartScale = scaling.value;
+}
+
+function applyPinchFromTouches(t: TouchList) {
+  if (!pinching || pinchStartDist <= 0 || t.length < 2) return;
+  const dist = touchDistance(t);
+  if (dist <= 0) return;
+  const mid = touchMid(t);
+  const local = clientToCanvas(mid.x, mid.y);
+  // Разведение пальцев → приближение → меньший scaling.
+  zoomAt(local.x, local.y, pinchStartScale * (pinchStartDist / dist));
+}
+
+function onTouchStart(e: TouchEvent) {
+  if (e.touches.length >= 2) {
+    e.preventDefault();
+    beginPinchFromTouches(e.touches);
+  }
+}
+
+function onTouchMove(e: TouchEvent) {
+  if (e.touches.length >= 2) {
+    e.preventDefault();
+    if (!pinching) beginPinchFromTouches(e.touches);
+    applyPinchFromTouches(e.touches);
+  }
+}
+
+function onTouchEnd(e: TouchEvent) {
+  if (e.touches.length < 2) {
+    pinching = false;
+    if (e.touches.length === 1) {
+      beginPanFromPointer(e.touches[0].clientX, e.touches[0].clientY);
+    } else {
+      down.value = false;
+    }
+  }
+}
+
+function onPointerDown(e: PointerEvent) {
+  if (e.pointerType === "mouse" && e.button !== 0) return;
+  // Не captur'им touch: на мобилках capture 1-го пальца часто глотает 2-й.
+  if (e.pointerType === "mouse") {
+    try {
+      (e.currentTarget as HTMLElement | null)?.setPointerCapture?.(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+  }
+  if (pinching) return;
+  activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+  if (activePointers.size >= 2) {
+    // Fallback, если touch* не пришли (редкие браузеры).
+    pinching = true;
+    down.value = false;
+    pinchStartDist = activePointerDistance();
+    pinchStartScale = scaling.value;
+    updateMousePos(e);
+    return;
+  }
+
+  beginPanFromPointer(e.clientX, e.clientY);
   updateMousePos(e);
   if (hoveredNode.value) emit("clickNode", hoveredNode.value);
 }
 
 function onPointerUp(e: PointerEvent) {
-  if (e.type === "pointerup") down.value = false;
+  activePointers.delete(e.pointerId);
+  if (activePointers.size < 2 && !pinching) {
+    if (activePointers.size === 1) {
+      const rem = [...activePointers.values()][0]!;
+      beginPanFromPointer(rem.x, rem.y);
+    } else {
+      down.value = false;
+    }
+  }
   updateMousePos(e);
 }
 
-function onPointerMove(e: MouseEvent) {
+function onPointerMove(e: PointerEvent) {
+  if (pinching) return;
+
+  if (activePointers.has(e.pointerId)) {
+    activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  }
+
+  if (activePointers.size >= 2 && pinchStartDist > 0) {
+    pinching = true;
+    down.value = false;
+    const dist = activePointerDistance();
+    if (dist > 0) {
+      const mid = activePointerMidClient();
+      const local = clientToCanvas(mid.x, mid.y);
+      zoomAt(local.x, local.y, pinchStartScale * (pinchStartDist / dist));
+    }
+    updateMousePos(e);
+    return;
+  }
+
   if (down.value) {
     offsetX.value = startX.value - (downX.value - e.clientX) * scaling.value;
     offsetY.value = startY.value - (downY.value - e.clientY) * scaling.value;
@@ -1430,15 +1568,7 @@ function onPointerMove(e: MouseEvent) {
 }
 
 function onWheel(e: WheelEvent) {
-  if (e.deltaY > 0 && scaling.value < 30) {
-    offsetX.value += e.offsetX;
-    offsetY.value += e.offsetY;
-  }
-  if (e.deltaY < 0 && scaling.value > 3) {
-    offsetX.value -= e.offsetX;
-    offsetY.value -= e.offsetY;
-  }
-  scaling.value = Math.min(30, Math.max(3, scaling.value + e.deltaY / 100));
+  zoomAt(e.offsetX, e.offsetY, scaling.value + e.deltaY / 100);
   e.preventDefault();
   e.stopPropagation();
 }
@@ -1454,16 +1584,24 @@ watch(
   { deep: true },
 );
 
-function bindWheel() {
+function bindCanvasGestures() {
   const el = canvasRef.value;
   if (!el) return;
   el.addEventListener("wheel", onWheel, { passive: false });
+  el.addEventListener("touchstart", onTouchStart, { passive: false });
+  el.addEventListener("touchmove", onTouchMove, { passive: false });
+  el.addEventListener("touchend", onTouchEnd, { passive: false });
+  el.addEventListener("touchcancel", onTouchEnd, { passive: false });
 }
 
-function unbindWheel() {
+function unbindCanvasGestures() {
   const el = canvasRef.value;
   if (!el) return;
   el.removeEventListener("wheel", onWheel);
+  el.removeEventListener("touchstart", onTouchStart);
+  el.removeEventListener("touchmove", onTouchMove);
+  el.removeEventListener("touchend", onTouchEnd);
+  el.removeEventListener("touchcancel", onTouchEnd);
 }
 
 onMounted(() => {
@@ -1475,16 +1613,18 @@ onMounted(() => {
   onResize();
   window.addEventListener("resize", onResize);
   window.addEventListener("pointerup", onPointerUp);
+  window.addEventListener("pointercancel", onPointerUp);
   window.addEventListener("pointermove", onPointerMove);
-  nextTick(bindWheel);
+  nextTick(bindCanvasGestures);
   rafId = requestAnimationFrame(loop);
 });
 
 onUnmounted(() => {
   cancelAnimationFrame(rafId);
-  unbindWheel();
+  unbindCanvasGestures();
   window.removeEventListener("resize", onResize);
   window.removeEventListener("pointerup", onPointerUp);
+  window.removeEventListener("pointercancel", onPointerUp);
   window.removeEventListener("pointermove", onPointerMove);
 });
 </script>
@@ -1516,5 +1656,6 @@ onUnmounted(() => {
   top: 0;
   left: 0;
   z-index: 0;
+  touch-action: none;
 }
 </style>

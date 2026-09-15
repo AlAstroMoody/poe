@@ -1,8 +1,12 @@
 {
   "statNamesRuByStringId": {
-    "self_damaging_ailment_duration_+%": "{0}% увеличение длительности наносящих урон состояний на вас"
+    "self_damaging_ailment_duration_+%": "{0}% увеличение длительности наносящих урон состояний на вас",
+    "keystone_mental_conditioning": "80% максимума маны становится бронёй с удвоенным значением"
   },
   "statNamesRuReducedByStringId": {
     "self_damaging_ailment_duration_+%": "{0}% уменьшение длительности наносящих урон состояний на вас"
+  },
+  "statTemplatesEnByStringId": {
+    "keystone_mental_conditioning": "80% of Maximum Mana is Converted to twice that much Armour"
   }
 }
