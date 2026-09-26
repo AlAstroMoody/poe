@@ -2,6 +2,7 @@
 
 import { ref } from "vue";
 import { getData } from "@/services/wasmDataService";
+import { withAssetVersion } from "@/lib/assetVersion";
 import { shortestPathToClassStart } from "./zorathPath";
 import type { Node } from "./skill_tree_types";
 
@@ -165,12 +166,14 @@ function cacheKey(jewelType: number, socketId: number): string {
 
 function urlForSocket(jewelType: number, socketId: number): string {
   const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-  return `${base}/abyss-affected/${jewelType}/${socketId}.bin`;
+  return withAssetVersion(
+    `${base}/abyss-affected/${jewelType}/${socketId}.bin`,
+  );
 }
 
 function urlForZorath(): string {
   const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-  return `${base}/abyss-affected/11/zorath.bin`;
+  return withAssetVersion(`${base}/abyss-affected/11/zorath.bin`);
 }
 
 async function gunzip(buf: ArrayBuffer): Promise<Uint8Array> {

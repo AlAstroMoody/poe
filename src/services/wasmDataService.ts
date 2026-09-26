@@ -1,4 +1,5 @@
 import { BASE_DATA_URL } from "@/config";
+import { withAssetVersion } from "@/lib/assetVersion";
 
 declare global {
   interface Window {
@@ -166,7 +167,9 @@ function initializeFromGlobal(): void {
 }
 
 /** Local wasm from public/ (preferred in dev and prod). Respect Vite base path (e.g. /poe/). */
-const LOCAL_WASM_URL = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/calculator.wasm`;
+const LOCAL_WASM_URL = withAssetVersion(
+  `${import.meta.env.BASE_URL.replace(/\/$/, "")}/calculator.wasm`,
+);
 const PRIMARY_WASM_URL = LOCAL_WASM_URL;
 
 /** В dev иначе после `npm run wasm:build` браузер может отдавать старый calculator.wasm из кэша. */
@@ -176,7 +179,7 @@ const WASM_FETCH_OPTIONS: RequestInit = import.meta.env.DEV
 
 /** Optional remote fallback via VITE_DATA_URL. */
 const FALLBACK_WASM_URL = BASE_DATA_URL
-  ? BASE_DATA_URL.replace(/\/$/, "") + "/calculator.wasm"
+  ? withAssetVersion(BASE_DATA_URL.replace(/\/$/, "") + "/calculator.wasm")
   : "";
 
 async function fetchWasmArrayBuffer(
@@ -251,20 +254,59 @@ async function instantiateWasmFromUrl(
   return result.instance;
 }
 
+type GoConstructor = new () => {
+  importObject: WebAssembly.Imports;
+  run: (r: unknown) => void;
+};
+
+let wasmExecLoad: Promise<GoConstructor> | null = null;
+
+function getWindowGo(): GoConstructor | undefined {
+  return (window as unknown as { Go?: GoConstructor }).Go;
+}
+
+/** Подгрузить public/wasm_exec.js, если скрипт из index.html не успел / упал. */
+function ensureGoRuntime(): Promise<GoConstructor> {
+  const existing = getWindowGo();
+  if (existing) return Promise.resolve(existing);
+  if (wasmExecLoad) return wasmExecLoad;
+
+  const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
+  const src = `${base}wasm_exec.js`;
+  wasmExecLoad = new Promise<GoConstructor>((resolve, reject) => {
+    const finish = () => {
+      const Go = getWindowGo();
+      if (Go) resolve(Go);
+      else reject(new Error(`wasm_exec.js loaded (${src}) but window.Go missing`));
+    };
+    const fail = () => reject(new Error(`Failed to load ${src}`));
+
+    const prev = document.querySelector<HTMLScriptElement>(
+      `script[src="${src}"]`,
+    );
+    if (prev) {
+      if (getWindowGo()) {
+        finish();
+        return;
+      }
+      prev.addEventListener("load", finish, { once: true });
+      prev.addEventListener("error", fail, { once: true });
+      return;
+    }
+
+    const s = document.createElement("script");
+    s.src = src;
+    s.onload = finish;
+    s.onerror = fail;
+    document.head.appendChild(s);
+  });
+  return wasmExecLoad;
+}
+
 export async function loadWasm(
   onProgress?: (progress: LoadWasmProgress) => void,
 ): Promise<void> {
-  const Go =
-    typeof window !== "undefined" &&
-    (
-      window as unknown as {
-        Go?: new () => {
-          importObject: WebAssembly.Imports;
-          run: (r: unknown) => void;
-        };
-      }
-    ).Go;
-  if (!Go) throw new Error("Load wasm_exec.js before loadWasm()");
+  const Go = await ensureGoRuntime();
 
   const go = new Go();
   let instance: WebAssembly.Instance;
