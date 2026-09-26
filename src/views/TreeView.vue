@@ -35,6 +35,15 @@ const startGuideHidden = ref(
     localStorage.getItem("poe-hide-start-guide") === "1",
 );
 
+function dismissStartGuide() {
+  startGuideHidden.value = true;
+  try {
+    localStorage.setItem("poe-hide-start-guide", "1");
+  } catch {
+    /* ignore */
+  }
+}
+
 const needsSeedHint = computed(
   () =>
     !startGuideHidden.value &&
@@ -265,14 +274,7 @@ watch(() => route.query, readQuery, { deep: true });
             <button
               type="button"
               class="mt-2 w-full cursor-pointer rounded-md px-2 py-1.5 text-xs text-gray-400 transition-colors hover:text-heading"
-              @click="
-                startGuideHidden = true;
-                try {
-                  localStorage.setItem('poe-hide-start-guide', '1');
-                } catch {
-                  /* ignore */
-                }
-              "
+              @click="dismissStartGuide"
             >
               {{ ui("guideDismiss", lang) }}
             </button>
@@ -298,7 +300,7 @@ watch(() => route.query, readQuery, { deep: true });
           @update:class-start-index="classStartIndex = $event"
           @update:ascendancy-name="ascendancyName = $event"
           @update:collapsed="menuCollapsed = $event"
-          @guide-dismissed="startGuideHidden = true"
+          @guide-dismissed="dismissStartGuide"
           @update-url="updateUrl"
         />
         <TreeNav v-model:lang="lang" />
