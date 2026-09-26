@@ -11,6 +11,7 @@ import { loadSkillTree } from "@/lib/skill_tree";
 import type { Node } from "@/lib/skill_tree_types";
 import { getLanguage } from "@/lib/i18n";
 import type { Lang } from "@/lib/i18n";
+import { loadTreePrefs, saveTreePrefs } from "@/lib/treePrefs";
 
 const route = useRoute();
 const router = useRouter();
@@ -28,6 +29,22 @@ const highlightJewels = ref(false);
 const classStartIndex = ref(1);
 const ascendancyName = ref("Juggernaut");
 
+/** Примеры для пустого экрана (большие сокеты). */
+const TREE_EXAMPLES = [
+  {
+    key: "exampleLp" as const,
+    query: { jewel: "2", conqueror: "Kaom", location: "55190" },
+  },
+  {
+    key: "exampleMf" as const,
+    query: { jewel: "4", conqueror: "Dominus", location: "2491" },
+  },
+  {
+    key: "exampleAbyss" as const,
+    query: { jewel: "7", conqueror: "Tecrod", location: "7960" },
+  },
+];
+
 function readQuery() {
   const q = route.query;
   if (q.jewel) selectedJewel.value = Number(q.jewel);
@@ -44,6 +61,23 @@ function readQuery() {
     highlighted.value = Array.isArray(q.highlighted)
       ? q.highlighted.map(Number)
       : [Number(q.highlighted)];
+}
+
+/** Поля без query — из localStorage (язык уже в i18n). */
+function applyPrefsFallback() {
+  const q = route.query;
+  const prefs = loadTreePrefs();
+  if (!q.jewel && prefs.jewel != null) selectedJewel.value = prefs.jewel;
+  if (!q.conqueror && prefs.conqueror)
+    selectedConqueror.value = prefs.conqueror;
+  if (!q.location && prefs.location != null) {
+    circledNode.value = prefs.location;
+    highlightJewels.value = true;
+  }
+  if (q.class == null && prefs.classStartIndex != null)
+    classStartIndex.value = prefs.classStartIndex;
+  if (!q.asc && prefs.ascendancyName)
+    ascendancyName.value = prefs.ascendancyName;
 }
 
 function updateUrl() {
@@ -67,6 +101,16 @@ function updateUrl() {
   router.replace({ path: route.path, query: q });
 }
 
+function persistPrefs() {
+  saveTreePrefs({
+    jewel: selectedJewel.value,
+    conqueror: selectedConqueror.value,
+    location: circledNode.value,
+    classStartIndex: classStartIndex.value,
+    ascendancyName: ascendancyName.value,
+  });
+}
+
 function onClickNode(node: Node) {
   if (node.isJewelSocket) {
     circledNode.value = node.skill;
@@ -85,6 +129,10 @@ function onHighlight(newSeed: number, passives: number[]) {
   highlighted.value = passives;
 }
 
+function openExample(query: Record<string, string>) {
+  router.replace({ path: "/tree", query });
+}
+
 onMounted(async () => {
   try {
     // WASM (calc) и UI-данные (дерево/переводы/possible_stats) — параллельно.
@@ -92,10 +140,12 @@ onMounted(async () => {
     if (!isWasmReady()) throw new Error("WASM not ready after load");
     await loadSkillTree();
     readQuery();
+    applyPrefsFallback();
     lang.value = getLanguage();
     // EN-словари отдельным чанком: при EN ждём, при RU греем в фоне (skeleton→id для фоллбеков).
     if (lang.value === "en") await ensureEnDictMaps();
     else void ensureEnDictMaps();
+    if (circledNode.value != null && !route.query.location) updateUrl();
     loading.value = false;
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e);
@@ -106,6 +156,17 @@ onMounted(async () => {
 watch(lang, (next) => {
   if (next === "en") void ensureEnDictMaps();
 });
+
+watch(
+  [
+    selectedJewel,
+    selectedConqueror,
+    circledNode,
+    classStartIndex,
+    ascendancyName,
+  ],
+  persistPrefs,
+);
 
 watch(() => route.query, readQuery, { deep: true });
 </script>
@@ -131,12 +192,41 @@ watch(() => route.query, readQuery, { deep: true });
           :seed="seed"
           :highlighted="highlighted"
           :disabled="disabled"
-          :highlight-jewels="highlightJewels"
+          :highlight-jewels="highlightJewels || circledNode == null"
           :class-start-index="classStartIndex"
           :ascendancy-name="ascendancyName"
           :lang="lang"
           @click-node="onClickNode"
         />
+
+        <div
+          v-if="circledNode == null"
+          class="empty-tree-hint pointer-events-none absolute inset-x-0 bottom-[5.75rem] z-[45] flex justify-center px-3 md:bottom-auto md:top-[22%] md:px-6"
+          data-tree-empty-hint
+        >
+          <div
+            class="pointer-events-auto max-w-md rounded-xl border border-heading/35 bg-black/80 px-4 py-3.5 shadow-lg backdrop-blur-md"
+          >
+            <h2 class="font-celtes text-heading text-base mb-1">
+              {{ ui("emptyTreeTitle", lang) }}
+            </h2>
+            <p class="text-sm text-gray-300 mb-3">
+              {{ ui("emptyTreeHint", lang) }}
+            </p>
+            <div class="flex flex-col gap-2">
+              <button
+                v-for="ex in TREE_EXAMPLES"
+                :key="ex.key"
+                type="button"
+                class="cursor-pointer rounded-md border border-heading/30 bg-heading/10 px-3 py-2 text-left text-sm text-heading transition-colors hover:border-heading/55 hover:bg-heading/20"
+                @click="openExample(ex.query)"
+              >
+                {{ ui(ex.key, lang) }}
+              </button>
+            </div>
+          </div>
+        </div>
+
         <TreeMenu
           :lang="lang"
           :circled-node="circledNode"
@@ -164,8 +254,12 @@ watch(() => route.query, readQuery, { deep: true });
 
 <style scoped>
 .tree-view {
-  width: 100vw;
+  width: 100%;
+  max-width: 100%;
+  /* Не height:100% — у App только min-h-screen, % схлопывается в 0. */
   height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   background: #171717;
 }
 .tree-content {
@@ -173,11 +267,11 @@ watch(() => route.query, readQuery, { deep: true });
   width: 100%;
   height: 100%;
   isolation: isolate;
+  overflow: hidden;
 }
 .tree-content :deep(.tree-menu-root) {
   position: absolute;
-  top: 0;
-  left: 0;
+  inset: 0;
   z-index: 50;
   pointer-events: none;
 }
@@ -191,8 +285,12 @@ watch(() => route.query, readQuery, { deep: true });
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 100%;
+  width: 100%;
+  min-height: 100%;
   gap: 1rem;
+  text-align: center;
+  padding: 1.5rem;
+  box-sizing: border-box;
 }
 .error {
   color: #f88;

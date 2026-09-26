@@ -64,6 +64,7 @@ import TreeTooltip, { type TooltipLine } from "./TreeTooltip.vue";
 import {
   tooltipPlacementStyle,
   clampTooltipAnchorX,
+  maxTooltipWidthForViewport,
 } from "@/lib/tooltipPlacement";
 
 /** Строки тултипа EN из PoB LegionPassives (sd), когда stat_descriptions нет */
@@ -111,6 +112,30 @@ const activePointers = new Map<number, { x: number; y: number }>();
 let pinching = false;
 let pinchStartDist = 0;
 let pinchStartScale = 10;
+
+/**
+ * Тач: короткий тап — закрепить/снять тултип (повторный тап по ноде или пустому месту).
+ * Long-press — как клик на десктопе (сокет / вкл-выкл ноды).
+ */
+const LONG_PRESS_MS = 500;
+const MOVE_CANCEL_PX = 12;
+const pinnedSkill = ref<number | null>(null);
+let longPressTimer: ReturnType<typeof setTimeout> | null = null;
+let pressIsTouch = false;
+let pressMoved = false;
+let longPressTriggered = false;
+let pressStartClient = { x: 0, y: 0 };
+
+function clearLongPressTimer() {
+  if (longPressTimer != null) {
+    clearTimeout(longPressTimer);
+    longPressTimer = null;
+  }
+}
+
+function clearHoverPos() {
+  mousePos.value = { x: Number.MIN_VALUE, y: Number.MIN_VALUE };
+}
 
 /** Кеш содержимого тултипа: пересчёт только при смене ноды/языка/камня. */
 type TooltipCache = {
@@ -792,6 +817,37 @@ function render() {
     }
   });
 
+  if (pinnedSkill.value != null) {
+    const pinAbyssSet = affectedSkillIdSet.value;
+    let found = false;
+    for (const nodeId of Object.keys(drawnNodes)) {
+      const node = drawnNodes[Number(nodeId)];
+      if (node.skill !== pinnedSkill.value) continue;
+      newHoverNode = node;
+      newHoverTreeNodeId = nodeId;
+      if (pinAbyssSet) {
+        hoveredNodeActive =
+          node.skill != null && pinAbyssSet.has(node.skill);
+      } else if (
+        props.circledNode &&
+        circledNodePos &&
+        distance(
+          calculateNodePos(node, offsetX.value, offsetY.value, scaling.value),
+          circledNodePos,
+        ) < jewelRadius.value
+      ) {
+        hoveredNodeActive = true;
+      } else {
+        hoveredNodeActive = false;
+      }
+      if (node.skill != null && props.disabled?.indexOf(node.skill) >= 0)
+        hoveredNodeActive = false;
+      found = true;
+      break;
+    }
+    if (!found) pinnedSkill.value = null;
+  }
+
   hoveredNode.value = newHoverNode;
 
   if (props.circledNode && circledNodePos) {
@@ -1005,7 +1061,7 @@ function render() {
           } else {
             // 2) Нет WASM StatsKeys — ищем ключ по полному тексту (строки как один блок), потом перевод по id.
             let statId = getStatIdFromDisplayLines(originals);
-            // Fallback по русскому названию только для одного стата (кистоун и т.п.); при нескольких статах один id подставляет чужое описание.
+            // Fallback по русскому названию только для одного стата (кейстоун и т.п.); при нескольких статах один id подставляет чужое описание.
             if (
               !statId &&
               lang === "ru" &&
@@ -1362,10 +1418,12 @@ function render() {
       offsetY.value,
       scaling.value,
     );
-    const anchorX = clampTooltipAnchorX(anchor.x, w);
+    const maxTipW = maxTooltipWidthForViewport(w);
+    const anchorX = clampTooltipAnchorX(anchor.x, w, maxTipW);
     tooltipStyle.value = tooltipPlacementStyle(
       { x: anchorX, y: anchor.y },
       h,
+      w,
     );
   } else {
     tooltipContent.value = null;
@@ -1512,19 +1570,43 @@ function onPointerDown(e: PointerEvent) {
     // Fallback, если touch* не пришли (редкие браузеры).
     pinching = true;
     down.value = false;
+    clearLongPressTimer();
     pinchStartDist = activePointerDistance();
     pinchStartScale = scaling.value;
     updateMousePos(e);
     return;
   }
 
+  pressIsTouch = e.pointerType !== "mouse";
+  pressMoved = false;
+  longPressTriggered = false;
+  pressStartClient = { x: e.clientX, y: e.clientY };
+  clearLongPressTimer();
+
   beginPanFromPointer(e.clientX, e.clientY);
   updateMousePos(e);
-  if (hoveredNode.value) emit("clickNode", hoveredNode.value);
+
+  if (pressIsTouch) {
+    // Long-press = действие (сокет / disable), как клик мышью.
+    longPressTimer = setTimeout(() => {
+      longPressTimer = null;
+      if (pressMoved || pinching) return;
+      longPressTriggered = true;
+      down.value = false;
+      const node = hoveredNode.value;
+      if (!node) return;
+      if (node.skill != null) pinnedSkill.value = node.skill;
+      emit("clickNode", node);
+    }, LONG_PRESS_MS);
+  } else if (hoveredNode.value) {
+    emit("clickNode", hoveredNode.value);
+  }
 }
 
 function onPointerUp(e: PointerEvent) {
   activePointers.delete(e.pointerId);
+  clearLongPressTimer();
+
   if (activePointers.size < 2 && !pinching) {
     if (activePointers.size === 1) {
       const rem = [...activePointers.values()][0]!;
@@ -1533,7 +1615,45 @@ function onPointerUp(e: PointerEvent) {
       down.value = false;
     }
   }
-  updateMousePos(e);
+
+  const totalMove = Math.hypot(
+    e.clientX - pressStartClient.x,
+    e.clientY - pressStartClient.y,
+  );
+
+  const isShortTap =
+    pressIsTouch &&
+    !longPressTriggered &&
+    !pressMoved &&
+    !pinching &&
+    totalMove <= MOVE_CANCEL_PX &&
+    activePointers.size === 0;
+
+  if (isShortTap) {
+    // Снимаем pin на кадр hit-test'а, иначе «под пальцем» всегда pinned-нода.
+    const wasPinned = pinnedSkill.value;
+    pinnedSkill.value = null;
+    updateMousePos(e);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const node = hoveredNode.value;
+        const skill = node?.skill ?? null;
+        if (skill == null || wasPinned === skill) {
+          // Пустое место или повторный тап по той же — снять тултип.
+          pinnedSkill.value = null;
+          clearHoverPos();
+          return;
+        }
+        pinnedSkill.value = skill;
+        if (node?.isJewelSocket) emit("clickNode", node);
+        clearHoverPos();
+      });
+    });
+  } else if (pressIsTouch && pinnedSkill.value == null) {
+    clearHoverPos();
+  } else if (!pressIsTouch) {
+    updateMousePos(e);
+  }
 }
 
 function onPointerMove(e: PointerEvent) {
@@ -1543,9 +1663,21 @@ function onPointerMove(e: PointerEvent) {
     activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   }
 
+  if (
+    longPressTimer != null &&
+    Math.hypot(
+      e.clientX - pressStartClient.x,
+      e.clientY - pressStartClient.y,
+    ) > MOVE_CANCEL_PX
+  ) {
+    pressMoved = true;
+    clearLongPressTimer();
+  }
+
   if (activePointers.size >= 2 && pinchStartDist > 0) {
     pinching = true;
     down.value = false;
+    clearLongPressTimer();
     const dist = activePointerDistance();
     if (dist > 0) {
       const mid = activePointerMidClient();
@@ -1561,10 +1693,12 @@ function onPointerMove(e: PointerEvent) {
     offsetY.value = startY.value - (downY.value - e.clientY) * scaling.value;
   }
   if ((e.target as Element).closest?.("[data-tree-menu]")) {
-    mousePos.value = { x: Number.MIN_VALUE, y: Number.MIN_VALUE };
+    if (pinnedSkill.value == null) {
+      mousePos.value = { x: Number.MIN_VALUE, y: Number.MIN_VALUE };
+    }
     return;
   }
-  updateMousePos(e);
+  if (pinnedSkill.value == null) updateMousePos(e);
 }
 
 function onWheel(e: WheelEvent) {
@@ -1621,6 +1755,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   cancelAnimationFrame(rafId);
+  clearLongPressTimer();
   unbindCanvasGestures();
   window.removeEventListener("resize", onResize);
   window.removeEventListener("pointerup", onPointerUp);
@@ -1649,12 +1784,11 @@ onUnmounted(() => {
 
 <style scoped>
 .canvas-wrap {
-  min-width: 100vw;
-  min-height: 100vh;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
   position: absolute;
-  top: 0;
-  left: 0;
+  inset: 0;
   z-index: 0;
   touch-action: none;
 }

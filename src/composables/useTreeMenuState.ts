@@ -1,4 +1,11 @@
-import { ref, computed, watch, toValue, type MaybeRefOrGetter } from "vue";
+import {
+  ref,
+  computed,
+  watch,
+  onMounted,
+  toValue,
+  type MaybeRefOrGetter,
+} from "vue";
 import { getData } from "@/services/wasmDataService";
 import {
   getAffectedNodes,
@@ -204,6 +211,11 @@ export function useTreeMenuState(options: {
   });
 
   const collapsed = ref(false);
+  onMounted(() => {
+    if (window.matchMedia("(max-width: 767px)").matches) {
+      collapsed.value = true;
+    }
+  });
   const seedTouched = ref(false);
 
   const notableIds = computed(() =>

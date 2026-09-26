@@ -210,7 +210,7 @@ function fillStatDescriptionsFromTranslations(arr, stringIdToRu, stringIdToRuRed
     const first =
       Array.isArray(ru) && ru[0] && ru[0].string ? ru[0].string : null;
     if (!first || !Array.isArray(ids)) continue;
-    // плейсхолдеры {0} / {0:+d} или многострочные описания (кистоуны с \n) — не короткие названия нод
+    // плейсхолдеры {0} / {0:+d} или многострочные описания (кейстоуны с \n) — не короткие названия нод
     if (!hasStatPlaceholder(first) && !first.includes("\n")) continue;
     const reminder = Array.isArray(ru) && ru[0] && ru[0].reminder_text ? ru[0].reminder_text : null;
     // для статов с плейсхолдером {0} нужен string (шаблон для подстановки значения), а не reminder_text
@@ -513,7 +513,7 @@ function main() {
 
   // 4) Названия нод только по id (id → русский). stat_translations — id→RU статов (с приоритетом длинного reminder_text).
   const passiveNamesRuById = {};
-  const statIdByRuName = {}; // русское короткое название ("Акробатика") → stat id (keystone_acrobatics), для fallback по кистоунам
+  const statIdByRuName = {}; // русское короткое название ("Акробатика") → stat id (keystone_acrobatics), для fallback по кейстоунам
   const statTranslationsRuPath = join(TEMP_RU, "stat_translations.json");
   if (existsSync(statTranslationsRuPath)) {
     const statTranslationsRu = loadJson(statTranslationsRuPath);
@@ -527,7 +527,7 @@ function main() {
     fillFromRepoeRu(statTranslationsRu, stringIdToRu, stringIdToRuReduced);
   }
 
-  // 4b) passive_skill.json — после stat_translations, чтобы варианты с \n (кистоуны, многострочные) не затирались одной строкой.
+  // 4b) passive_skill.json — после stat_translations, чтобы варианты с \n (кейстоуны, многострочные) не затирались одной строкой.
   const passiveSkillRuPath = join(TEMP_RU, "passive_skill.json");
   if (existsSync(passiveSkillRuPath)) {
     fillStatDescriptionsFromTranslations(loadJson(passiveSkillRuPath), stringIdToRu, stringIdToRuReduced);

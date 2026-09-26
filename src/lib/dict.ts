@@ -340,7 +340,7 @@ function normalizePassiveNameForLookup(name: string): string {
   return name.replace(/'/g, "").replace(/\s+/g, "_").toLowerCase();
 }
 
-/** Отображаемое название кистоуна/пассива по id (только по id). Для альтернативных нод от самоцвета имя может приходить как "Axiom Warden" — пробуем и нормализованный ключ. */
+/** Отображаемое название кейстоуна/пассива по id (только по id). Для альтернативных нод от самоцвета имя может приходить как "Axiom Warden" — пробуем и нормализованный ключ. */
 export function keystoneLabel(
   stringId: string,
   enLabel: string,
@@ -470,6 +470,18 @@ export const uiEn = {
   navHome: "Home",
   navInstruction: "Instructions",
   navFaq: "FAQ",
+  navEffects: "Keystones",
+  navCalc: "Calculator",
+  effectsHint:
+    "Keystone effects by jewel and conqueror. Click a card to open the tree with that jewel and name selected.",
+  effectsFilter: "Search by name or effect…",
+  emptyTreeTitle: "Pick a jewel socket",
+  emptyTreeHint:
+    "Tap a large socket on the tree (glowing when highlighted), or open an example:",
+  exampleLp: "Lethal Pride · Kaom",
+  exampleMf: "Militant Faith · Dominus",
+  exampleAbyss: "Abyss · Tecrod",
+  openMenu: "Open menu",
   issues: "Report a bug",
   navAria: "Navigation and language",
   langAria: "Language",
@@ -529,6 +541,18 @@ export const uiRu: Record<keyof typeof uiEn, string> = {
   navHome: "Главная",
   navInstruction: "Инструкция",
   navFaq: "Чаво",
+  navEffects: "Кейстоуны",
+  navCalc: "Калькулятор",
+  effectsHint:
+    "Кейстоуны по самоцветам и завоевателям. Клик по карточке открывает дерево с выбранным камнем и именем.",
+  effectsFilter: "Поиск по имени или эффекту…",
+  emptyTreeTitle: "Выберите сокет",
+  emptyTreeHint:
+    "Нажмите на большой сокет на дереве (подсвечивается) или откройте пример:",
+  exampleLp: "Смертельная гордость · Каом",
+  exampleMf: "Воинственная вера · Владыка",
+  exampleAbyss: "Бездна · Текрод",
+  openMenu: "Открыть меню",
   issues: "Сообщить об ошибке",
   navAria: "Навигация и язык",
   langAria: "Язык",

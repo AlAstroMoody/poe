@@ -59,6 +59,12 @@ function setLang(value: Lang) {
       >
         {{ ui("navFaq", lang) }}
       </RouterLink>
+      <RouterLink
+        to="/effects"
+        class="text-heading text-sm no-underline opacity-80 hover:opacity-100"
+      >
+        {{ ui("navEffects", lang) }}
+      </RouterLink>
       <a
         href="https://github.com/AlAstroMoody/poe/issues"
         target="_blank"

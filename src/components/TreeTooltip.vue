@@ -15,7 +15,7 @@ defineProps<{
   <div
     role="tooltip"
     :style="style"
-    class="pointer-events-none absolute z-20 w-max min-w-[11rem] max-w-[min(28rem,calc(100vw-2rem))] overflow-hidden rounded-lg border border-surface-border/30 bg-surface/95 shadow-surface backdrop-blur-md"
+    class="pointer-events-none absolute z-20 box-border w-max min-w-[11rem] max-w-[min(28rem,calc(100%-20px))] overflow-hidden rounded-lg border border-surface-border/30 bg-surface/95 shadow-surface backdrop-blur-md"
   >
     <div
       class="border-b border-surface-border/30 bg-surface-header/50 px-3 py-2 text-sm font-semibold leading-snug text-heading md:px-4 md:py-2.5 md:text-lg"

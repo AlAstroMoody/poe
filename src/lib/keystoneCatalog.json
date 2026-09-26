@@ -1,0 +1,511 @@
+{
+  "generatedAt": "2026-09-26T03:43:50.974Z",
+  "entries": [
+    {
+      "id": "vaal_keystone_2_v2",
+      "jewel": 1,
+      "jewelEn": "Glorious Vanity",
+      "conqueror": "Ahuana",
+      "nameEn": "Immortal Ambition",
+      "nameRu": "Бессмертные амбиции",
+      "linesEn": [
+        "Energy Shield starts at zero",
+        "Cannot Recharge or Regenerate Energy Shield",
+        "Lose 5% of Energy Shield per second",
+        "Life Leech effects are not removed when Unreserved Life is Filled",
+        "Life Leech effects Recover Energy Shield instead while on Full Life"
+      ],
+      "linesRu": [
+        "Ваш энергетический щит опустошён. Вы не можете перезаряжать или регенерировать энергетический щит. Вы теряете 5% энергетического щита в секунду. Эффекты похищения здоровья не удаляются при заполнении не удержанного здоровья. Эффекты похищения здоровья восстанавливают энергетический щит при полном здоровье"
+      ],
+      "conquerorIndex": 2,
+      "conquerorVersion": 1
+    },
+    {
+      "id": "vaal_keystone_3",
+      "jewel": 1,
+      "jewelEn": "Glorious Vanity",
+      "conqueror": "Doryani",
+      "nameEn": "Corrupted Soul",
+      "nameRu": "Осквернённая душа",
+      "linesEn": [
+        "50% of Non-Chaos Damage taken bypasses Energy Shield",
+        "Gain 15% of Maximum Life as Extra Maximum Energy Shield"
+      ],
+      "linesRu": [
+        "50% получаемого урона не-хаосом обходит энергетический щит",
+        "Добавляет 15% от максимума здоровья в виде дополнительного максимума энергетического щита"
+      ],
+      "conquerorIndex": 3,
+      "conquerorVersion": 0
+    },
+    {
+      "id": "vaal_keystone_1",
+      "jewel": 1,
+      "jewelEn": "Glorious Vanity",
+      "conqueror": "Xibaqua",
+      "nameEn": "Divine Flesh",
+      "nameRu": "Божественная плоть",
+      "linesEn": [
+        "All Damage taken bypasses Energy Shield",
+        "50% of Elemental Damage taken as Chaos Damage",
+        "+5% to maximum Chaos Resistance"
+      ],
+      "linesRu": [
+        "Весь получаемый урон обходит энергетический щит",
+        "50% получаемого урона от стихий становится уроном хаосом",
+        "+5% к максимальному сопротивлению хаосу"
+      ],
+      "conquerorIndex": 1,
+      "conquerorVersion": 0
+    },
+    {
+      "id": "vaal_keystone_2",
+      "jewel": 1,
+      "jewelEn": "Glorious Vanity",
+      "conqueror": "Zerphi",
+      "nameEn": "Eternal Youth",
+      "nameRu": "Вечная молодость",
+      "linesEn": [
+        "50% less Life Regeneration Rate",
+        "50% less maximum Total Life Recovery per Second from Leech",
+        "Energy Shield Recharge instead applies to Life"
+      ],
+      "linesRu": [
+        "На 50% меньше скорости регенeрации здоровья",
+        "На 50% меньше максимального итогового восстановления в секунду от похищения здоровья",
+        "Перезарядка энергетического щита вместо этого восстанавливает здоровье"
+      ],
+      "conquerorIndex": 2,
+      "conquerorVersion": 0
+    },
+    {
+      "id": "karui_keystone_3_v2",
+      "jewel": 2,
+      "jewelEn": "Lethal Pride",
+      "conqueror": "Akoya",
+      "nameEn": "Chainbreaker",
+      "nameRu": "Ломающий оковы",
+      "linesEn": [
+        "Mana Recovery from Regeneration is not applied",
+        "1 Rage Regenerated for every 25 Mana Regeneration per Second",
+        "Does not delay Inherent Loss of Rage",
+        "Skills Cost +3 Rage"
+      ],
+      "linesRu": [
+        "Восстановление маны от регенерации не применяется",
+        "1 свирепости регенерируется за регенерацию каждых 25 маны в секунду",
+        "Не откладывает изначальную потерю свирепости",
+        "Умения стоят +3 свирепости"
+      ],
+      "conquerorIndex": 3,
+      "conquerorVersion": 1
+    },
+    {
+      "id": "karui_keystone_1",
+      "jewel": 2,
+      "jewelEn": "Lethal Pride",
+      "conqueror": "Kaom",
+      "nameEn": "Strength of Blood",
+      "nameRu": "Сила крови",
+      "linesEn": [
+        "Life Recovery from Non-Instant Leech is not applied",
+        "2% additional Physical Damage Reduction for every 3% Life Recovery per second from Leech"
+      ],
+      "linesRu": [
+        "Восстановление здоровья не от похищения не применяется",
+        "2% дополнительного снижения получаемого физического урона за каждые 3% восстановления здоровья в секунду от похищения"
+      ],
+      "conquerorIndex": 1,
+      "conquerorVersion": 0
+    },
+    {
+      "id": "karui_keystone_3",
+      "jewel": 2,
+      "jewelEn": "Lethal Pride",
+      "conqueror": "Kiloava",
+      "nameEn": "Glancing Blows",
+      "nameRu": "Скользящие удары",
+      "linesEn": [
+        "Chance to Block Attack Damage is doubled",
+        "Chance to Block Spell Damage is doubled",
+        "You take 65% of Damage from Blocked Hits"
+      ],
+      "linesRu": [
+        "Шанс заблокировать урон от атак удвоен",
+        "Шанс заблокировать урон от чар удвоен",
+        "Вы получаете 65% урона от заблокированных ударов"
+      ],
+      "conquerorIndex": 3,
+      "conquerorVersion": 0
+    },
+    {
+      "id": "karui_keystone_2",
+      "jewel": 2,
+      "jewelEn": "Lethal Pride",
+      "conqueror": "Rakiata",
+      "nameEn": "Tempered by War",
+      "nameRu": "Закалённые войной",
+      "linesEn": [
+        "50% of Cold and Lightning Damage taken as Fire Damage",
+        "50% less Cold Resistance",
+        "50% less Lightning Resistance"
+      ],
+      "linesRu": [
+        "50% получаемого урона от молнии и холода становится уроном от огня",
+        "На 50% меньше сопротивления холоду",
+        "На 50%меньше сопротивления молнии"
+      ],
+      "conquerorIndex": 2,
+      "conquerorVersion": 0
+    },
+    {
+      "id": "maraketh_keystone_2",
+      "jewel": 3,
+      "jewelEn": "Brutal Restraint",
+      "conqueror": "Asenath",
+      "nameEn": "Dance with Death",
+      "nameRu": "Танец со смертью",
+      "linesEn": [
+        "Can't use Helmets",
+        "Your Critical Strike Chance is Lucky",
+        "Your Damage with Critical Strikes is Lucky",
+        "Enemies' Damage with Critical Strikes against you is Lucky"
+      ],
+      "linesRu": [
+        "Невозможно использовать шлем",
+        "Ваш шанс критического удара удачлив",
+        "Вы удачливы при нанесении урона критическими ударами",
+        "Враги удачливы при нанесении урона критическими ударами по вам"
+      ],
+      "conquerorIndex": 2,
+      "conquerorVersion": 0
+    },
+    {
+      "id": "maraketh_keystone_1_v2",
+      "jewel": 3,
+      "jewelEn": "Brutal Restraint",
+      "conqueror": "Balbala",
+      "nameEn": "The Traitor",
+      "nameRu": "Предатель",
+      "linesEn": [
+        "Flasks Gain 4 Charges per empty Flask Slot every 5 seconds"
+      ],
+      "linesRu": [
+        "Флаконы получают 4 заряда за каждую пустующую ячейку под флаконы каждые 5 секунд"
+      ],
+      "conquerorIndex": 1,
+      "conquerorVersion": 1
+    },
+    {
+      "id": "maraketh_keystone_1",
+      "jewel": 3,
+      "jewelEn": "Brutal Restraint",
+      "conqueror": "Deshret",
+      "nameEn": "Wind Dancer",
+      "nameRu": "Танцующий с ветром",
+      "linesEn": [
+        "20% less Attack Damage taken if you haven't been Hit by an Attack Recently",
+        "10% more chance to Evade Attacks if you have been Hit by an Attack Recently",
+        "20% more Attack Damage taken if you have been Hit by an Attack Recently"
+      ],
+      "linesRu": [
+        "На 20% меньше получаемого урона от атак, если недавно вы не получали удар атакой",
+        "На 10% больший шанс уклониться от атак, если недавно вы получали удар атакой",
+        "На 20% больше получаемого урона от атак, если недавно вы получали удар атакой"
+      ],
+      "conquerorIndex": 1,
+      "conquerorVersion": 0
+    },
+    {
+      "id": "maraketh_keystone_3",
+      "jewel": 3,
+      "jewelEn": "Brutal Restraint",
+      "conqueror": "Nasima",
+      "nameEn": "Second Sight",
+      "nameRu": "Ясновидение",
+      "linesEn": [
+        "You are Blind",
+        "Blind does not affect your Light Radius",
+        "25% more Melee Critical Strike Chance while Blinded"
+      ],
+      "linesRu": [
+        "Вы ослеплены",
+        "Слепота не уменьшает ваш радиус обзора",
+        "На 25% больше шанса критического удара в ближнем бою пока вы ослеплены"
+      ],
+      "conquerorIndex": 3,
+      "conquerorVersion": 0
+    },
+    {
+      "id": "templar_keystone_3",
+      "jewel": 4,
+      "jewelEn": "Militant Faith",
+      "conqueror": "Avarius",
+      "nameEn": "Power of Purpose",
+      "nameRu": "Могучее намерение",
+      "linesEn": [
+        "80% of Maximum Mana is Converted to twice that much Armour"
+      ],
+      "linesRu": [
+        "80% максимума маны становится бронёй с удвоенным значением"
+      ],
+      "conquerorIndex": 3,
+      "conquerorVersion": 0
+    },
+    {
+      "id": "templar_keystone_2",
+      "jewel": 4,
+      "jewelEn": "Militant Faith",
+      "conqueror": "Dominus",
+      "nameEn": "Inner Conviction",
+      "nameRu": "Внутренняя убеждённость",
+      "linesEn": [
+        "3% more Spell Damage per Power Charge",
+        "Gain Power Charges instead of Frenzy Charges"
+      ],
+      "linesRu": [
+        "На 3% больше урона от чар за заряд энергии",
+        "Вы получаете заряды энергии вместо зарядов ярости"
+      ],
+      "conquerorIndex": 2,
+      "conquerorVersion": 0
+    },
+    {
+      "id": "templar_keystone_1_v2",
+      "jewel": 4,
+      "jewelEn": "Militant Faith",
+      "conqueror": "Maxarius",
+      "nameEn": "Transcendence",
+      "nameRu": "Непостижимость",
+      "linesEn": [
+        "Armour applies to Fire, Cold and Lightning Damage taken from Hits instead of Physical Damage",
+        "-15% to all maximum Elemental Resistances"
+      ],
+      "linesRu": [
+        "Броня применяется к получаемому урону от ударов от огня, холода и молнии вместо физического урона",
+        "-15% к максимуму всех сопротивлений стихиям"
+      ],
+      "conquerorIndex": 1,
+      "conquerorVersion": 1
+    },
+    {
+      "id": "templar_keystone_1",
+      "jewel": 4,
+      "jewelEn": "Militant Faith",
+      "conqueror": "Venarius",
+      "nameEn": "The Agnostic",
+      "nameRu": "Агностик",
+      "linesEn": [
+        "Removes all Energy Shield",
+        "While not on Full Life, Sacrifice 20% of Mana per Second to Recover that much Life"
+      ],
+      "linesRu": [
+        "Удаляет весь энергетический щит",
+        "При неполном здоровье отнимает 20% от маны в секунду, чтобы восстановить такое же количество здоровья"
+      ],
+      "conquerorIndex": 1,
+      "conquerorVersion": 0
+    },
+    {
+      "id": "eternal_keystone_1",
+      "jewel": 5,
+      "jewelEn": "Elegant Hubris",
+      "conqueror": "Cadiro",
+      "nameEn": "Supreme Decadence",
+      "nameRu": "Величайшая безнравственность",
+      "linesEn": [
+        "Life Recovery from Flasks also applies to Energy Shield",
+        "30% less Life Recovery from Flasks"
+      ],
+      "linesRu": [
+        "Восстановление здоровья от флаконов также действует на энергетический щит",
+        "На 30% меньше восстановления здоровья от флаконов"
+      ],
+      "conquerorIndex": 1,
+      "conquerorVersion": 0
+    },
+    {
+      "id": "eternal_keystone_3_v2",
+      "jewel": 5,
+      "jewelEn": "Elegant Hubris",
+      "conqueror": "Caspiro",
+      "nameEn": "Supreme Ostentation",
+      "nameRu": "Величайшее хвастовство",
+      "linesEn": [
+        "Ignore Attribute Requirements",
+        "Gain no inherent bonuses from Attributes"
+      ],
+      "linesRu": [
+        "Требования к характеристикам не учитываются",
+        "Вы не получаете связанные с характеристиками бонусы"
+      ],
+      "conquerorIndex": 3,
+      "conquerorVersion": 1
+    },
+    {
+      "id": "eternal_keystone_3",
+      "jewel": 5,
+      "jewelEn": "Elegant Hubris",
+      "conqueror": "Chitus",
+      "nameEn": "Supreme Ego",
+      "nameRu": "Величайшее эго",
+      "linesEn": [
+        "Auras from your Skills can only affect you",
+        "Aura Skills have 1% more Aura Effect per 2% of maximum Mana they Reserve",
+        "40% more Mana Reservation of Aura Skills"
+      ],
+      "linesRu": [
+        "Ауры от ваших умений действуют только на вас",
+        "На 1% больший эффект умений аур за каждые удержанные ими 2% от максимума маны",
+        "Умения удерживают на 40% больше маны"
+      ],
+      "conquerorIndex": 3,
+      "conquerorVersion": 0
+    },
+    {
+      "id": "eternal_keystone_2",
+      "jewel": 5,
+      "jewelEn": "Elegant Hubris",
+      "conqueror": "Victario",
+      "nameEn": "Supreme Grandstanding",
+      "nameRu": "Величайшее тщеславие",
+      "linesEn": [
+        "Nearby Allies and Enemies Share Charges with you",
+        "Enemies Hitting you have 10% chance to gain an Endurance, ",
+        "Frenzy or Power Charge"
+      ],
+      "linesRu": [
+        "Ближайшие союзники и враги разделяют заряды с вами",
+        "Враги при нанесении по вам ударов имеют 10% шанс получить заряд выносливости,",
+        "ярости или энергии"
+      ],
+      "conquerorIndex": 2,
+      "conquerorVersion": 0
+    },
+    {
+      "id": "kalguur_keystone_1",
+      "jewel": 6,
+      "jewelEn": "Heroic Tragedy",
+      "conqueror": "Black Scythe Training",
+      "nameEn": "Black Scythe Training",
+      "nameRu": "Подготовка Чёрной косы",
+      "linesEn": [
+        "Removes all Energy Shield",
+        "Chance to Evade Hits is based off of 200% of your Ward instead of your Evasion Rating",
+        "Physical Damage Reduction from Hits is based off of 200% of your Ward instead of your Armour"
+      ],
+      "linesRu": [
+        "Удаляет весь энергетический щит",
+        "Шанс уклонения от ударов основан на 200% от вашего барьера вместо вашего уклонения",
+        "Уменьшение получаемого физического урона основано на 200% от вашего барьера вместо вашей брони"
+      ],
+      "conquerorIndex": 1,
+      "conquerorVersion": 0
+    },
+    {
+      "id": "kalguur_keystone_2",
+      "jewel": 6,
+      "jewelEn": "Heroic Tragedy",
+      "conqueror": "Celestial Mathematics",
+      "nameEn": "Celestial Mathematics",
+      "nameRu": "Небесная математика",
+      "linesEn": [
+        "While you have Unbroken Ward, your next non-channelling Attack you Use yourself breaks your Ward to gain Added Cold Damage equal to 25% of Ward"
+      ],
+      "linesRu": [
+        "Пока ваш барьер не расколот, ваша следующая неподдерживаемая атака, которую вы используете самостоятельно, раскалывает ваш барьер и наносит дополнительный урон от холода в размере 25% барьера"
+      ],
+      "conquerorIndex": 2,
+      "conquerorVersion": 0
+    },
+    {
+      "id": "kalguur_keystone_3",
+      "jewel": 6,
+      "jewelEn": "Heroic Tragedy",
+      "conqueror": "The Unbreaking Circle",
+      "nameEn": "The Unbreaking Circle",
+      "nameRu": "Неразмыкаемый круг",
+      "linesEn": [
+        "40% less Ward",
+        "Ward has a 60% chance to not Break"
+      ],
+      "linesRu": [
+        "На 40% меньше барьера",
+        "Барьер с 60% шансом может не разрушиться"
+      ],
+      "conquerorIndex": 3,
+      "conquerorVersion": 0
+    },
+    {
+      "id": "abyss_murderous_keystone",
+      "jewel": 7,
+      "jewelEn": "Festering Vengeance",
+      "conqueror": "Tecrod",
+      "nameEn": "Overwhelming Hate",
+      "nameRu": "Переполняющая ненависть",
+      "linesEn": [
+        "keystone abyss murderous"
+      ],
+      "linesRu": [
+        "На 20% меньше максимума здоровья",
+        "Увеличения и уменьшения максимума здоровья также влияют на максимум свирепости в размере 20% от их значения"
+      ],
+      "conquerorIndex": 0,
+      "conquerorVersion": 0
+    },
+    {
+      "id": "abyss_searching_keystone",
+      "jewel": 8,
+      "jewelEn": "Extinguishing Grasp",
+      "conqueror": "Ulaman",
+      "nameEn": "Weighted Exchange",
+      "nameRu": "Взвешенный обмен",
+      "linesEn": [
+        "keystone abyss searching"
+      ],
+      "linesRu": [
+        "Вы получаете на 15% больше урона от не-критических ударов",
+        "Вы получаете на 30% меньше урона от критических ударов"
+      ],
+      "conquerorIndex": 0,
+      "conquerorVersion": 0
+    },
+    {
+      "id": "abyss_hypnotic_keystone",
+      "jewel": 9,
+      "jewelEn": "Baleful Dominion",
+      "conqueror": "Kurgal",
+      "nameEn": "Reconstructed Essence",
+      "nameRu": "Перестроенная сущность",
+      "linesEn": [
+        "keystone abyss hypnotic"
+      ],
+      "linesRu": [
+        "Восполнение здоровья также восстанавливает ману",
+        "На 50% меньше восстановления от восполнения"
+      ],
+      "conquerorIndex": 0,
+      "conquerorVersion": 0
+    },
+    {
+      "id": "abyss_ghastly_keystone",
+      "jewel": 10,
+      "jewelEn": "Destructive Aspiration",
+      "conqueror": "Amanamu",
+      "nameEn": "The Loyal Few",
+      "nameRu": "Преданная братия",
+      "linesEn": [
+        "keystone abyss ghastly"
+      ],
+      "linesRu": [
+        "Приспешники получают на 10% меньше урона, пока у вас есть зомби",
+        "Приспешники наносят на 10% больше урона, пока у вас есть скелет",
+        "Приспешники наносят 10% урона не-хаосом в виде дополнительного урона хаосом, пока у вас есть призрак",
+        "Максимально количество призванных призраков, скелетов и зомби равно 1"
+      ],
+      "conquerorIndex": 0,
+      "conquerorVersion": 0
+    }
+  ]
+}

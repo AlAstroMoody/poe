@@ -72,6 +72,136 @@ const {
   ascendancyName: () => props.ascendancyName,
 });
 
+/** Мобильный sheet: drag меняет высоту/translate вслед за пальцем. */
+const SHEET_OPEN_VH = 0.78;
+const SHEET_CLOSE_RATIO = 0.22;
+const SHEET_CLOSE_MIN_PX = 64;
+const EDGE_PEEK_PX = 48;
+const sheetEl = ref<HTMLElement | null>(null);
+const edgeEl = ref<HTMLElement | null>(null);
+const dragOffsetY = ref(0);
+const sheetDragging = ref(false);
+const edgePullH = ref(0);
+const edgeDragging = ref(false);
+let swipeStartY = 0;
+let swipeStartX = 0;
+let swipeLocked: "none" | "v" | "h" = "none";
+let swipeFromHandle = false;
+
+function isMobileSheet(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(max-width: 767px)").matches
+  );
+}
+
+function sheetOpenHeight(): number {
+  return Math.min(window.innerHeight * SHEET_OPEN_VH, 640);
+}
+
+const sheetDragStyle = computed(() => {
+  if (!isMobileSheet()) return undefined;
+  return {
+    transform: `translate3d(0, ${dragOffsetY.value}px, 0)`,
+    transition: sheetDragging.value ? "none" : "transform 0.22s ease-out",
+    willChange: sheetDragging.value ? "transform" : "auto",
+  } as Record<string, string>;
+});
+
+function onSheetTouchStart(e: TouchEvent, fromHandle: boolean) {
+  if (!isMobileSheet()) return;
+  swipeStartY = e.touches[0]?.clientY ?? 0;
+  swipeStartX = e.touches[0]?.clientX ?? 0;
+  swipeLocked = "none";
+  swipeFromHandle = fromHandle;
+  sheetDragging.value = false;
+}
+
+function onSheetTouchMove(e: TouchEvent) {
+  if (!isMobileSheet() || e.touches.length !== 1) return;
+  const y = e.touches[0].clientY;
+  const x = e.touches[0].clientX;
+  const dy = y - swipeStartY;
+  const dx = x - swipeStartX;
+  if (swipeLocked === "none" && (Math.abs(dy) > 6 || Math.abs(dx) > 6)) {
+    swipeLocked = Math.abs(dy) >= Math.abs(dx) ? "v" : "h";
+  }
+  if (swipeLocked !== "v") return;
+  const atTop = (sheetEl.value?.scrollTop ?? 0) <= 2;
+  if (!swipeFromHandle && !(atTop && dy > 0)) return;
+  if (dy < 0 && dragOffsetY.value <= 0) return;
+  sheetDragging.value = true;
+  dragOffsetY.value = Math.max(0, dy);
+  if (e.cancelable) e.preventDefault();
+}
+
+function finishSheetDrag() {
+  if (!sheetDragging.value && dragOffsetY.value === 0) return;
+  const h = sheetEl.value?.offsetHeight || sheetOpenHeight();
+  const shouldClose =
+    dragOffsetY.value >= Math.max(SHEET_CLOSE_MIN_PX, h * SHEET_CLOSE_RATIO);
+  sheetDragging.value = false;
+  if (shouldClose) {
+    dragOffsetY.value = 0;
+    collapsed.value = true;
+  } else {
+    dragOffsetY.value = 0;
+  }
+  swipeLocked = "none";
+}
+
+function onSheetTouchEnd() {
+  finishSheetDrag();
+}
+
+function onEdgeTouchStart(e: TouchEvent) {
+  if (!isMobileSheet()) return;
+  swipeStartY = e.touches[0]?.clientY ?? 0;
+  swipeStartX = e.touches[0]?.clientX ?? 0;
+  swipeLocked = "none";
+  edgeDragging.value = false;
+  edgePullH.value = 0;
+}
+
+function onEdgeTouchMove(e: TouchEvent) {
+  if (!isMobileSheet() || e.touches.length !== 1) return;
+  const y = e.touches[0].clientY;
+  const x = e.touches[0].clientX;
+  const dy = y - swipeStartY;
+  const dx = x - swipeStartX;
+  if (swipeLocked === "none" && (Math.abs(dy) > 6 || Math.abs(dx) > 6)) {
+    swipeLocked = Math.abs(dy) >= Math.abs(dx) ? "v" : "h";
+  }
+  if (swipeLocked !== "v" || dy >= 0) return;
+  edgeDragging.value = true;
+  const up = -dy;
+  edgePullH.value = Math.min(sheetOpenHeight(), EDGE_PEEK_PX + up);
+  if (e.cancelable) e.preventDefault();
+}
+
+function onEdgeTouchEnd() {
+  if (!edgeDragging.value) {
+    edgePullH.value = 0;
+    swipeLocked = "none";
+    return;
+  }
+  const openH = sheetOpenHeight();
+  const shouldOpen = edgePullH.value >= openH * 0.35;
+  edgeDragging.value = false;
+  edgePullH.value = 0;
+  swipeLocked = "none";
+  if (shouldOpen) {
+    dragOffsetY.value = 0;
+    collapsed.value = false;
+  }
+}
+
+function openSheet() {
+  dragOffsetY.value = 0;
+  edgePullH.value = 0;
+  collapsed.value = false;
+}
+
 const jewelFamilyOptions = computed(() => [
   { value: "timeless", label: ui("jewelFamilyTimeless", props.lang) },
   { value: "abyss", label: ui("jewelFamilyAbyss", props.lang) },
@@ -226,8 +356,24 @@ watch(addStatValue, (v) => {
   <div class="tree-menu-root" data-tree-menu>
     <div
       v-if="!collapsed"
-      class="themed absolute top-0 left-0 z-40 max-h-screen w-[min(100vw-1rem,22.5rem)] overflow-x-hidden overflow-y-auto rounded-br-xl border border-surface-border bg-surface/95 shadow-surface backdrop-blur-md md:w-[36rem] lg:w-[40rem] xl:w-[42rem]"
+      ref="sheetEl"
+      class="themed absolute z-40 overflow-x-hidden overflow-y-auto border border-surface-border bg-surface/95 shadow-surface backdrop-blur-md max-md:inset-x-0 max-md:bottom-0 max-md:top-auto max-md:max-h-[min(78vh,40rem)] max-md:max-w-full max-md:rounded-t-xl max-md:border-b-0 md:top-0 md:left-0 md:max-h-screen md:w-[min(100%-1rem,22.5rem)] md:rounded-br-xl lg:w-[40rem] xl:w-[42rem]"
+      :style="sheetDragStyle"
+      @touchstart.passive="onSheetTouchStart($event, false)"
+      @touchmove="onSheetTouchMove"
+      @touchend.passive="onSheetTouchEnd"
+      @touchcancel.passive="onSheetTouchEnd"
     >
+      <div
+        class="md:hidden sticky top-0 z-10 flex cursor-grab touch-none flex-col items-center bg-surface/95 pt-2.5 pb-1"
+        aria-hidden
+        @touchstart.passive="onSheetTouchStart($event, true)"
+        @touchmove="onSheetTouchMove"
+        @touchend.passive="onSheetTouchEnd"
+        @touchcancel.passive="onSheetTouchEnd"
+      >
+        <div class="h-1 w-10 rounded-full bg-heading/45" />
+      </div>
       <div
         v-if="searching"
         class="pointer-events-none absolute inset-0 z-50 flex items-center justify-center rounded-br-xl bg-black/60 backdrop-blur-sm"
@@ -239,7 +385,7 @@ watch(addStatValue, (v) => {
           aria-hidden
         />
       </div>
-      <div class="relative p-4 md:p-5">
+      <div class="relative p-4 pt-2 md:p-5 md:pt-5">
         <TreeMenuHeader
           :lang="lang"
           :show-results="showResults"
@@ -254,7 +400,10 @@ watch(addStatValue, (v) => {
           @update:platform="platform = $event"
           @update:group-results="groupResults = $event"
           @update:show-results="showResults = $event"
-          @collapse="collapsed = true"
+          @collapse="
+            dragOffsetY = 0;
+            collapsed = true;
+          "
         />
 
         <div v-if="!showResults">
@@ -492,12 +641,45 @@ watch(addStatValue, (v) => {
       </div>
     </div>
 
-    <MenuBurgerButton
-      v-else
-      :open="false"
-      label="Open menu"
-      class="absolute top-0 left-0 z-40 rounded-none rounded-br-xl border-surface-border/30 bg-surface/95 px-3.5 py-3.5 shadow-surface backdrop-blur-md hover:bg-surface"
-      @click="collapsed = false"
-    />
+    <template v-else>
+      <!-- Полоска + pull-up превью высоты при свайпе вверх -->
+      <div
+        ref="edgeEl"
+        class="absolute inset-x-0 bottom-0 z-40 md:hidden"
+        @touchstart.passive="onEdgeTouchStart"
+        @touchmove="onEdgeTouchMove"
+        @touchend.passive="onEdgeTouchEnd"
+        @touchcancel.passive="onEdgeTouchEnd"
+      >
+        <div
+          v-if="edgePullH > EDGE_PEEK_PX"
+          class="themed pointer-events-none absolute inset-x-0 bottom-0 overflow-hidden rounded-t-xl border border-b-0 border-surface-border bg-surface/95 shadow-surface backdrop-blur-md"
+          :style="{
+            height: `${edgePullH}px`,
+            transition: edgeDragging ? 'none' : 'height 0.2s ease-out',
+          }"
+        >
+          <div class="flex flex-col items-center pt-2.5 pb-1">
+            <div class="h-1 w-10 rounded-full bg-heading/45" />
+          </div>
+        </div>
+        <button
+          type="button"
+          class="relative flex w-full flex-col items-center gap-1.5 border-t border-heading/25 bg-surface/90 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 text-heading backdrop-blur-md transition-opacity"
+          :class="edgePullH > EDGE_PEEK_PX ? 'pointer-events-none opacity-0' : ''"
+          :aria-label="ui('openMenu', lang)"
+          @click="openSheet"
+        >
+          <div class="h-1 w-10 rounded-full bg-heading/45" aria-hidden />
+          <span class="text-xs opacity-80">{{ ui("openMenu", lang) }}</span>
+        </button>
+      </div>
+      <MenuBurgerButton
+        :open="false"
+        :label="ui('openMenu', lang)"
+        class="absolute z-40 border-surface-border/30 bg-surface/95 px-3.5 py-3.5 shadow-surface backdrop-blur-md hover:bg-surface max-md:hidden md:top-0 md:left-0 md:rounded-none md:rounded-br-xl"
+        @click="openSheet"
+      />
+    </template>
   </div>
 </template>

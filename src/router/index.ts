@@ -31,6 +31,12 @@ const router = createRouter({
       component: () => import("@/views/FaqView.vue"),
       meta: { title: "Чаво" },
     },
+    {
+      path: "/effects",
+      name: "effects",
+      component: () => import("@/views/EffectsView.vue"),
+      meta: { title: "Кейстоуны" },
+    },
   ],
 });
 

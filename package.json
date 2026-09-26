@@ -17,7 +17,7 @@
     "deploy": "npm run version:patch && npm run build && git add dist package.json -f && git commit -m \"Deploy v$(node -p \"require('./package.json').version\")\" && git subtree push --prefix dist origin gh-pages",
     "fetch:skilltree-export": "node scripts/fetch-skilltree-export.mjs",
     "prepare:wasm-data": "node scripts/prepare-wasm-data.mjs",
-    "pipeline:refresh": "npm run fetch:go-pob-data && npm run fetch:skilltree-export && npm run fetch:passive-tree-ru && npm run build:dict && npm run build:possible-stats && npm run prepare:wasm-data && npm run wasm:build && npm run release:check",
+    "pipeline:refresh": "npm run fetch:go-pob-data && npm run fetch:skilltree-export && npm run fetch:passive-tree-ru && npm run build:dict && npm run build:possible-stats && npm run build:keystone-catalog && npm run prepare:wasm-data && npm run wasm:build && npm run release:check",
     "wasm:build": "bash scripts/build-wasm.sh",
     "fetch:go-pob-data": "node scripts/fetch-go-pob-data.mjs",
     "extract:go-pob-copy": "node scripts/extract-go-pob-data-local.mjs",
@@ -29,7 +29,8 @@
     "fetch:stat-descriptions-ggpk": "bash scripts/fetch-stat-descriptions-ggpk.sh",
     "pipeline:refresh:full": "npm run pipeline:refresh && npm run fetch:stat-descriptions-ggpk && npm run fetch:alternate-names && npm run build:dict && npm run release:check",
     "build:abyss-affected": "python3 scripts/build-abyss-affected-nodes.py",
-    "build:possible-stats": "python3 scripts/build-possible-stats.py"
+    "build:possible-stats": "python3 scripts/build-possible-stats.py",
+    "build:keystone-catalog": "node scripts/build-keystone-catalog.mjs"
   },
   "dependencies": {
     "vue": "^3.5.13",
