@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed } from "vue";
+import { ref, watch, computed, nextTick } from "vue";
 import type { Lang } from "@/lib/i18n";
 import { ui } from "@/lib/dict";
 import SearchResultsList from "./SearchResultsList.vue";
@@ -35,6 +35,8 @@ const emit = defineEmits<{
   "update:disabled": [v: number[]];
   "update:classStartIndex": [v: number];
   "update:ascendancyName": [v: string];
+  "update:collapsed": [v: boolean];
+  "guide-dismissed": [];
   "update-url": [];
 }>();
 
@@ -49,6 +51,7 @@ const {
   ascendancyOptions,
   affectedNodes,
   seedValid,
+  seedRanges,
   mode,
   selectedStats,
   statListFilter,
@@ -201,6 +204,71 @@ function openSheet() {
   edgePullH.value = 0;
   collapsed.value = false;
 }
+
+/** Для новичка: после выбора сокета открыть меню на вкладке «номер». */
+function openForSeedEntry() {
+  openSheet();
+  mode.value = "seed";
+  nextTick(() => {
+    document.getElementById("seed-input")?.focus();
+  });
+}
+
+defineExpose({ openForSeedEntry, openSheet });
+
+watch(collapsed, (v) => emit("update:collapsed", v), { immediate: true });
+
+const GUIDE_STORAGE_KEY = "poe-hide-start-guide";
+
+function readGuideHidden(): boolean {
+  try {
+    return localStorage.getItem(GUIDE_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+const guideHidden = ref(readGuideHidden());
+
+function dismissGuide() {
+  guideHidden.value = true;
+  try {
+    localStorage.setItem(GUIDE_STORAGE_KEY, "1");
+  } catch {
+    /* ignore */
+  }
+  emit("guide-dismissed");
+}
+
+const guideStepSocketDone = computed(() => props.circledNode != null);
+const guideStepJewelDone = computed(
+  () => !!props.selectedJewel && !!props.selectedConqueror,
+);
+const guideStepSeedDone = computed(() => seedValid.value);
+/** Чеклист только пока новичок не ввёл seed и не нажал «Понятно». */
+const showStartGuide = computed(
+  () => !guideHidden.value && !guideStepSeedDone.value,
+);
+const showGuideSeedCta = computed(
+  () =>
+    showStartGuide.value &&
+    guideStepSocketDone.value &&
+    guideStepJewelDone.value &&
+    mode.value === "seed",
+);
+
+watch(seedValid, (ok) => {
+  if (ok && !guideHidden.value) dismissGuide();
+});
+
+watch(
+  () => props.circledNode,
+  (id, prev) => {
+    if (id == null || id === prev) return;
+    // Автооткрытие меню — только пока виден онбординг.
+    if (prev == null && showStartGuide.value) openForSeedEntry();
+  },
+);
 
 const jewelFamilyOptions = computed(() => [
   { value: "timeless", label: ui("jewelFamilyTimeless", props.lang) },
@@ -406,6 +474,68 @@ watch(addStatValue, (v) => {
           "
         />
 
+        <nav
+          v-if="!showResults && showStartGuide"
+          class="mb-4 rounded-lg border border-heading/20 bg-heading/5 px-3 py-2.5"
+          :aria-label="ui('guideTitle', lang)"
+        >
+          <div class="mb-1.5 flex items-center justify-between gap-2">
+            <p
+              class="text-[0.65rem] font-medium uppercase tracking-wide text-muted"
+            >
+              {{ ui("guideTitle", lang) }}
+            </p>
+            <button
+              type="button"
+              class="shrink-0 cursor-pointer rounded px-1.5 py-0.5 text-xs text-muted transition-colors hover:bg-white/10 hover:text-heading"
+              @click="dismissGuide"
+            >
+              {{ ui("guideDismiss", lang) }}
+            </button>
+          </div>
+          <ol class="space-y-1 text-sm">
+            <li
+              class="flex gap-2"
+              :class="
+                guideStepSocketDone
+                  ? 'text-muted line-through decoration-heading/30'
+                  : 'text-heading'
+              "
+            >
+              <span class="tabular-nums opacity-70">1.</span>
+              <span>{{ ui("guideStepSocket", lang) }}</span>
+            </li>
+            <li
+              class="flex gap-2"
+              :class="
+                guideStepJewelDone
+                  ? 'text-muted line-through decoration-heading/30'
+                  : 'text-heading'
+              "
+            >
+              <span class="tabular-nums opacity-70">2.</span>
+              <span>{{ ui("guideStepJewel", lang) }}</span>
+            </li>
+            <li
+              class="flex gap-2"
+              :class="
+                guideStepSeedDone
+                  ? 'text-muted line-through decoration-heading/30'
+                  : 'text-heading font-medium'
+              "
+            >
+              <span class="tabular-nums opacity-70">3.</span>
+              <span>{{ ui("guideStepSeed", lang) }}</span>
+            </li>
+          </ol>
+          <p
+            v-if="showGuideSeedCta"
+            class="mt-2 text-xs text-accent-muted"
+          >
+            {{ ui("guideSeedCta", lang) }}
+          </p>
+        </nav>
+
         <div v-if="!showResults">
           <label
             class="mb-1.5 block text-xs font-medium uppercase tracking-wide text-muted"
@@ -570,6 +700,8 @@ watch(addStatValue, (v) => {
               :seed="seed"
               :seed-valid="seedValid"
               :seed-touched="seedTouched"
+              :seed-min="seedRanges?.Min"
+              :seed-max="seedRanges?.Max"
               :circled-node="circledNode"
               :selected-jewel="selectedJewel"
               :selected-conqueror="selectedConqueror"

@@ -1692,7 +1692,12 @@ function onPointerMove(e: PointerEvent) {
     offsetX.value = startX.value - (downX.value - e.clientX) * scaling.value;
     offsetY.value = startY.value - (downY.value - e.clientY) * scaling.value;
   }
-  if ((e.target as Element).closest?.("[data-tree-menu]")) {
+  // Оверлеи над деревом (меню, нав, «выберите сокет») — не ховерить ноды под ними.
+  if (
+    (e.target as Element).closest?.(
+      "[data-tree-menu], [data-tree-nav], [data-tree-empty-hint]",
+    )
+  ) {
     if (pinnedSkill.value == null) {
       mousePos.value = { x: Number.MIN_VALUE, y: Number.MIN_VALUE };
     }

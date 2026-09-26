@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from "vue";
+import { ref, onMounted, watch, computed } from "vue";
 import { RouterLink, useRoute, useRouter } from "vue-router";
 import SkillTreeCanvas from "@/components/SkillTreeCanvas.vue";
 import TreeMenu from "@/components/TreeMenu.vue";
@@ -28,6 +28,20 @@ const disabled = ref<number[]>([]);
 const highlightJewels = ref(false);
 const classStartIndex = ref(1);
 const ascendancyName = ref("Juggernaut");
+const treeMenuRef = ref<{ openForSeedEntry: () => void } | null>(null);
+const menuCollapsed = ref(false);
+const startGuideHidden = ref(
+  typeof localStorage !== "undefined" &&
+    localStorage.getItem("poe-hide-start-guide") === "1",
+);
+
+const needsSeedHint = computed(
+  () =>
+    !startGuideHidden.value &&
+    circledNode.value != null &&
+    !(seed.value > 0) &&
+    menuCollapsed.value,
+);
 
 /** Примеры для пустого экрана (большие сокеты). */
 const TREE_EXAMPLES = [
@@ -227,7 +241,46 @@ watch(() => route.query, readQuery, { deep: true });
           </div>
         </div>
 
+        <div
+          v-else-if="needsSeedHint"
+          class="empty-tree-hint pointer-events-none absolute inset-x-0 bottom-[5.75rem] z-[45] flex justify-center px-3 md:bottom-auto md:top-[22%] md:px-6"
+          data-tree-empty-hint
+        >
+          <div
+            class="pointer-events-auto max-w-md rounded-xl border border-heading/35 bg-black/80 px-4 py-3.5 shadow-lg backdrop-blur-md"
+          >
+            <h2 class="font-celtes text-heading text-base mb-1">
+              {{ ui("nextStepTitle", lang) }}
+            </h2>
+            <p class="text-sm text-gray-300 mb-3">
+              {{ ui("nextStepHint", lang) }}
+            </p>
+            <button
+              type="button"
+              class="w-full cursor-pointer rounded-md border border-heading/40 bg-heading/15 px-3 py-2.5 text-sm text-heading transition-colors hover:border-heading/60 hover:bg-heading/25"
+              @click="treeMenuRef?.openForSeedEntry()"
+            >
+              {{ ui("nextStepOpenMenu", lang) }}
+            </button>
+            <button
+              type="button"
+              class="mt-2 w-full cursor-pointer rounded-md px-2 py-1.5 text-xs text-gray-400 transition-colors hover:text-heading"
+              @click="
+                startGuideHidden = true;
+                try {
+                  localStorage.setItem('poe-hide-start-guide', '1');
+                } catch {
+                  /* ignore */
+                }
+              "
+            >
+              {{ ui("guideDismiss", lang) }}
+            </button>
+          </div>
+        </div>
+
         <TreeMenu
+          ref="treeMenuRef"
           :lang="lang"
           :circled-node="circledNode"
           :disabled="disabled"
@@ -244,6 +297,8 @@ watch(() => route.query, readQuery, { deep: true });
           @update:disabled="disabled = $event"
           @update:class-start-index="classStartIndex = $event"
           @update:ascendancy-name="ascendancyName = $event"
+          @update:collapsed="menuCollapsed = $event"
+          @guide-dismissed="startGuideHidden = true"
           @update-url="updateUrl"
         />
         <TreeNav v-model:lang="lang" />

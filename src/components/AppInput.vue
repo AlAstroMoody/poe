@@ -5,6 +5,8 @@ const props = defineProps<{
   type?: string;
   min?: number;
   max?: number;
+  placeholder?: string;
+  id?: string;
   class?: string;
 }>();
 
@@ -27,10 +29,12 @@ function onInput(e: Event) {
 
 <template>
   <input
+    :id="id"
     :value="model"
     :type="type ?? 'text'"
     :min="min"
     :max="max"
+    :placeholder="placeholder"
     class="w-full rounded-md border border-surface-border/25 bg-input-bg px-3 py-2.5 text-sm text-inherit outline-none transition-[border-color,box-shadow] focus:border-accent/40 focus:ring-1 focus:ring-accent/25"
     :class="props.class"
     @input="onInput"

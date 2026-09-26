@@ -12,6 +12,8 @@ const props = defineProps<{
   seed: number;
   seedValid: boolean;
   seedTouched: boolean;
+  seedMin?: number;
+  seedMax?: number;
   circledNode: number | undefined;
   selectedJewel: number;
   selectedConqueror: string;
@@ -61,18 +63,45 @@ function onSeedInput(v: string | number) {
 
 <template>
   <div class="mt-5">
-    <h3 class="mb-2 text-sm font-semibold text-heading">{{ ui("seed", lang) }}</h3>
+    <label class="mb-1.5 block text-sm font-semibold text-heading" for="seed-input">
+      {{ ui("seed", lang) }}
+    </label>
+    <p class="mb-2 text-xs leading-snug text-muted">
+      {{ ui("seedHint", lang) }}
+    </p>
     <AppInput
-      :model-value="seed"
+      id="seed-input"
+      :model-value="seed > 0 ? seed : ''"
       type="number"
       class="w-full"
+      :min="seedMin"
+      :max="seedMax"
+      :placeholder="ui('seedPlaceholder', lang)"
       @update:model-value="onSeedInput($event)"
       @blur="emit('seedBlur')"
     />
     <p
-      v-if="jewelFlavorLines.length"
-      class="mt-3 text-sm leading-relaxed italic"
+      v-if="seedMin != null && seedMax != null"
+      class="mt-1.5 text-xs tabular-nums"
       :class="seedTouched && !seedValid ? 'text-red-400' : 'text-muted'"
+    >
+      {{ ui("seedRangeHint", lang) }}
+      {{ seedMin.toLocaleString(lang === "ru" ? "ru-RU" : "en-US") }}
+      –
+      {{ seedMax.toLocaleString(lang === "ru" ? "ru-RU" : "en-US") }}
+    </p>
+    <p
+      v-else-if="seedTouched && !seedValid"
+      class="mt-1.5 text-xs text-red-400"
+    >
+      {{ ui("seedBetween", lang) }}
+      {{ seedMin ?? "?" }}
+      {{ ui("and", lang) }}
+      {{ seedMax ?? "?" }}
+    </p>
+    <p
+      v-if="jewelFlavorLines.length"
+      class="mt-3 text-sm leading-relaxed italic text-muted"
     >
       <template v-for="(line, i) in jewelFlavorLines" :key="i">
         {{ line }}
