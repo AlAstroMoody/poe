@@ -7,6 +7,7 @@ import {
   getStat,
   type StatConfig,
 } from "@/lib/skill_tree";
+import { getPossibleStats } from "@/lib/uiData";
 import { jewelLabel, conquerorLabel, statLabelByStringId } from "@/lib/dict";
 import type { Lang } from "@/lib/i18n";
 import {
@@ -175,12 +176,7 @@ export function useTreeMenuState(options: {
   const selectedStats = ref<Record<number, StatConfig>>({});
   const allPossibleStats = computed(() => {
     const selectedJewel = toValue(options.selectedJewel);
-    return selectedJewel
-      ? (JSON.parse(data.PossibleStats) as Record<
-          number,
-          Record<string, number>
-        >)
-      : {};
+    return selectedJewel ? getPossibleStats() : {};
   });
   const availableStats = computed(() => {
     const selectedJewel = toValue(options.selectedJewel);

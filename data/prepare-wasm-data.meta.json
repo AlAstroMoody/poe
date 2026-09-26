@@ -2,12 +2,16 @@
   "source": {
     "skilltreeExport": "https://raw.githubusercontent.com/grindinggear/skilltree-export/master/data.json"
   },
-  "generatedAt": "2026-08-13T06:03:06.931Z",
+  "generatedAt": "2026-09-26T03:20:27.079Z",
   "updated": [
     "SkillTree.json",
     "SkillTree.json.gz",
-    "passive_skills.json.gz (stubs if any)"
+    "applicable_passive_indices.json.gz",
+    "passive_skills.json.gz (stubs if any)",
+    "public/data/* (UI fetch)"
   ],
   "passiveSkillStubsMerged": 0,
-  "validatedGzCount": 13
+  "applicablePassiveIndices": 2349,
+  "validatedWasmGzCount": 6,
+  "publicUiGzCount": 5
 }

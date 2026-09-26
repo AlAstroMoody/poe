@@ -8,21 +8,26 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
 const DATA = join(ROOT, "data");
 
-const REQUIRED_GZ = [
+/** Calc tables embedded in WASM. */
+const REQUIRED_WASM_GZ = [
   "alternate_passive_additions.json.gz",
   "alternate_passive_skills.json.gz",
   "alternate_tree_versions.json.gz",
   "passive_skills.json.gz",
   "stats.json.gz",
+  "applicable_passive_indices.json.gz",
+];
+
+/** Fetched by frontend from public/data (also kept under data/). */
+const REQUIRED_UI_GZ = [
   "SkillTree.json.gz",
   "stat_descriptions.json.gz",
   "passive_skill_stat_descriptions.json.gz",
   "passive_skill_aura_stat_descriptions.json.gz",
-  "stat_descriptions_ru.json.gz",
-  "passive_skill_stat_descriptions_ru.json.gz",
-  "passive_skill_aura_stat_descriptions_ru.json.gz",
   "possible_stats.json.gz",
 ];
+
+const REQUIRED_GZ = [...REQUIRED_WASM_GZ, ...REQUIRED_UI_GZ];
 
 function readJson(path) {
   return JSON.parse(readFileSync(path, "utf8"));
@@ -42,7 +47,17 @@ function main() {
 
   for (const file of REQUIRED_GZ) {
     const p = join(DATA, file);
-    if (!existsSync(p)) critical.push(`Missing ${file}`);
+    if (!existsSync(p)) critical.push(`Missing data/${file}`);
+  }
+
+  const publicData = join(ROOT, "public", "data");
+  for (const file of REQUIRED_UI_GZ) {
+    const p = join(publicData, file);
+    if (!existsSync(p)) {
+      critical.push(
+        `Missing public/data/${file} (run npm run prepare:wasm-data)`,
+      );
+    }
   }
 
   const wasmPath = join(ROOT, "public", "calculator.wasm");

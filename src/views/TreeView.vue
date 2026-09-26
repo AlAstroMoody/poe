@@ -5,6 +5,8 @@ import SkillTreeCanvas from "@/components/SkillTreeCanvas.vue";
 import TreeMenu from "@/components/TreeMenu.vue";
 import TreeNav from "@/components/TreeNav.vue";
 import { loadWasm, isWasmReady } from "@/services/wasmDataService";
+import { loadUiData } from "@/lib/uiData";
+import { ensureEnDictMaps, ui } from "@/lib/dict";
 import { loadSkillTree } from "@/lib/skill_tree";
 import type { Node } from "@/lib/skill_tree_types";
 import { getLanguage } from "@/lib/i18n";
@@ -85,16 +87,24 @@ function onHighlight(newSeed: number, passives: number[]) {
 
 onMounted(async () => {
   try {
-    await loadWasm();
+    // WASM (calc) и UI-данные (дерево/переводы/possible_stats) — параллельно.
+    await Promise.all([loadWasm(), loadUiData()]);
     if (!isWasmReady()) throw new Error("WASM not ready after load");
     await loadSkillTree();
     readQuery();
     lang.value = getLanguage();
+    // EN-словари отдельным чанком: при EN ждём, при RU греем в фоне (skeleton→id для фоллбеков).
+    if (lang.value === "en") await ensureEnDictMaps();
+    else void ensureEnDictMaps();
     loading.value = false;
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e);
     loading.value = false;
   }
+});
+
+watch(lang, (next) => {
+  if (next === "en") void ensureEnDictMaps();
 });
 
 watch(() => route.query, readQuery, { deep: true });
@@ -103,14 +113,14 @@ watch(() => route.query, readQuery, { deep: true });
 <template>
   <div class="tree-view text-heading font-celtes">
     <div v-if="loading" class="loading">
-      <h1>Уже почти готово</h1>
-      <p>Подгружаем данные…</p>
+      <h1>{{ ui("loadingTitle", lang) }}</h1>
+      <p>{{ ui("loadingHint", lang) }}</p>
     </div>
     <div v-else-if="error" class="error">
-      <h1>Внезапная ошибка</h1>
+      <h1>{{ ui("errorTitle", lang) }}</h1>
       <p>{{ error }}</p>
-      <p class="hint">пу-пу-пу</p>
-      <RouterLink to="/">На главную</RouterLink>
+      <p class="hint">{{ ui("errorHint", lang) }}</p>
+      <RouterLink to="/">{{ ui("backHome", lang) }}</RouterLink>
     </div>
     <template v-else>
       <div class="tree-content">

@@ -165,7 +165,7 @@ Min/max (`{0}`/`{1}`) чинили в tooltip и search list отдельно.
 | # | Работа | Эффект на загрузку | Сложность |
 | --- | ---: | --- | --- |
 | P0 | Trim runtime-словарей статов (`build:dict`) — **сделано** (TreeView ~7 MB → ~1.8 MB; `FULL_STAT_DICT=1` для полного) | TreeView JS сильно ↓ | средняя |
-| P0 | Убрать SkillTree + translations (+ PossibleStats) из WASM → `public/data` | WASM ↓, TTI ↓ | средняя |
+| P0 | Убрать SkillTree + translations (+ PossibleStats) из WASM → `public/data` — **сделано** (`src/lib/uiData.ts`, `prepare-wasm-data` sync) | WASM ↓, TTI ↓ | средняя |
 | P1 | Trim `stats` / passive rows в embed | WASM ↓ ещё | средняя |
 | P1 | Worker для classic ReverseSearch + прогресс | UX, без зависаний | низкая–средняя |
 | P1 | Индекс для Abyss reverse search | CPU поиска ↓ | высокая |

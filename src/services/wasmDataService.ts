@@ -25,13 +25,6 @@ export interface WasmData {
     ID: string;
     Text: string;
   };
-  PassiveSkillAuraStatTranslationsJSON: string;
-  PassiveSkillStatTranslationsJSON: string;
-  SkillTree: string;
-  StatTranslationsJSON: string;
-  StatTranslationsRuJSON?: string;
-  PassiveSkillStatTranslationsRuJSON?: string;
-  PassiveSkillAuraStatTranslationsRuJSON?: string;
   /** Ключ = PassiveSkillGraphId; значение = строка passive_skills (Index = _key в дампе). */
   TreeToPassive: Record<
     number,
@@ -55,7 +48,6 @@ export interface WasmData {
     number,
     { Min: number; Max: number; Special: boolean }
   >;
-  PossibleStats: string;
 }
 
 /** Снимок цепочки поиска пулов альтернатив (см. calculator/trace.go). */

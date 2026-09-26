@@ -1,7 +1,5 @@
 package data
 
-import "strconv"
-
 func GetApplicableAlternatePassiveAdditions(passiveSkill *PassiveSkill, timelessJewel TimelessJewel) []*AlternatePassiveAddition {
 	return reverseAlternatePassiveAdditions[GetPassiveSkillType(passiveSkill)][timelessJewel.AlternateTreeVersion.Index]
 }
@@ -112,33 +110,9 @@ func GetAlternateTreeVersionIndex(index uint32) *AlternateTreeVersion {
 }
 
 func GetApplicablePassives() []*PassiveSkill {
-	applicable := make([]*PassiveSkill, 0)
-	for _, skill := range PassiveSkills {
-		if skill.Name == "" {
-			continue
-		}
-
-		if skill.IsJewelSocket {
-			continue
-		}
-
-		if node, ok := SkillTreeData.Nodes[strconv.Itoa(int(skill.PassiveSkillGraphID))]; ok {
-			if node.AscendancyName != nil {
-				continue
-			}
-
-			if node.IsProxy != nil && *node.IsProxy {
-				continue
-			}
-
-			if node.IsBlighted != nil && *node.IsBlighted {
-				continue
-			}
-
-			if node.IsMastery != nil && *node.IsMastery {
-				continue
-			}
-
+	applicable := make([]*PassiveSkill, 0, len(ApplicablePassiveIndices))
+	for _, idx := range ApplicablePassiveIndices {
+		if skill := idToPassiveSkill[idx]; skill != nil {
 			applicable = append(applicable, skill)
 		}
 	}

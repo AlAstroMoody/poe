@@ -99,6 +99,22 @@ export default defineConfig({
               cacheableResponse: { statuses: [0, 200] },
             },
           },
+          {
+            // SkillTree / translations / possible_stats (?v= bust)
+            urlPattern: ({ url }) =>
+              url.pathname.includes("/data/") &&
+              (url.pathname.endsWith(".json.gz") ||
+                url.pathname.endsWith(".json")),
+            handler: "CacheFirst",
+            options: {
+              cacheName: "poe-ui-data",
+              expiration: {
+                maxEntries: 20,
+                maxAgeSeconds: 60 * 60 * 24 * 365,
+              },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
         ],
       },
       devOptions: {

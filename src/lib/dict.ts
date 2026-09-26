@@ -10,11 +10,9 @@ import passiveNodeRuJson from "@/temp/ru/passive_node_ru.json";
 import {
   statNamesRuByStringIdGenerated,
   statNamesRuReducedByStringIdGenerated,
-  statStringToIdGenerated,
   passiveNamesRuByIdGenerated,
   passiveSkillGraphIdToNameRuGenerated,
   statIdByRuNameGenerated,
-  statTemplatesEnByStringIdGenerated,
 } from "./statNamesRu.generated";
 
 /** Самоцветы: id → русское название (официальная локализация игры) */
@@ -93,15 +91,39 @@ export const statNamesRuByStringId: Record<string, string> = {
   ...statNamesRuByStringIdGenerated,
 };
 
-/** skeleton (числа → __) → stat id. Для поиска по отображаемой строке без индексов. */
-export const statStringToId: Record<string, string> = {
-  ...statStringToIdGenerated,
-};
+/**
+ * skeleton (числа → __) → stat id. Заполняется ensureEnDictMaps() (lazy chunk).
+ * Нужен и для RU-фоллбека по EN-тексту из WASM.
+ */
+export const statStringToId: Record<string, string> = {};
 
 /** Вариант «reduced»/«less»: id → русский шаблон (для статов с двумя формулировками). */
 export const statNamesRuReducedByStringId: Record<string, string> = {
   ...statNamesRuReducedByStringIdGenerated,
 };
+
+let enDictLoad: Promise<void> | null = null;
+let enDictReady = false;
+
+/** Подгрузить EN-шаблоны + skeleton→id отдельным чанком (не в начальном TreeView). */
+export function ensureEnDictMaps(): Promise<void> {
+  if (enDictReady) return Promise.resolve();
+  if (enDictLoad) return enDictLoad;
+  enDictLoad = import("./dictEn")
+    .then((m) => {
+      Object.assign(statStringToId, m.statStringToIdGenerated);
+      Object.assign(
+        statTemplatesEnByStringId,
+        m.statTemplatesEnByStringIdGenerated,
+      );
+      enDictReady = true;
+    })
+    .catch((err) => {
+      enDictLoad = null;
+      throw err;
+    });
+  return enDictLoad;
+}
 
 const NUM_RE = /[+-]?\d+(?:\.\d+)?/g;
 
@@ -181,10 +203,11 @@ export const statIdByRuName: Record<string, string> = {
   ...statIdByRuNameGenerated,
 };
 
-/** id → английский шаблон стата (для тултипа альтернативных нод, когда WASM не даёт Text). */
-export const statTemplatesEnByStringId: Record<string, string> = {
-  ...statTemplatesEnByStringIdGenerated,
-};
+/**
+ * id → английский шаблон стата. Заполняется ensureEnDictMaps() (lazy chunk).
+ * Для тултипа EN / когда WASM не даёт Text.
+ */
+export const statTemplatesEnByStringId: Record<string, string> = {};
 
 /**
  * Строка тултипа RU для стата из WASM: словарь по id, затем по скелетону англ. текста из stats.json,
@@ -450,6 +473,11 @@ export const uiEn = {
   issues: "Report a bug",
   navAria: "Navigation and language",
   langAria: "Language",
+  loadingTitle: "Almost ready",
+  loadingHint: "Loading data…",
+  errorTitle: "Unexpected error",
+  errorHint: "oops",
+  backHome: "Home",
 } as const;
 
 export const uiRu: Record<keyof typeof uiEn, string> = {
@@ -504,6 +532,11 @@ export const uiRu: Record<keyof typeof uiEn, string> = {
   issues: "Сообщить об ошибке",
   navAria: "Навигация и язык",
   langAria: "Язык",
+  loadingTitle: "Уже почти готово",
+  loadingHint: "Подгружаем данные…",
+  errorTitle: "Внезапная ошибка",
+  errorHint: "пу-пу-пу",
+  backHome: "На главную",
 };
 
 export function ui(key: keyof typeof uiEn, lang: "ru" | "en"): string {

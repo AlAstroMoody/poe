@@ -18,23 +18,22 @@ func Expose() *crystalline.Exposer {
 	e.ExposeFuncOrPanic(data.GetPassiveSkillByIndex)
 
 	e.ExposeOrPanic(map[data.JewelType]string{
-		data.GloriousVanity:         data.GloriousVanity.String(),
-		data.LethalPride:            data.LethalPride.String(),
-		data.BrutalRestraint:        data.BrutalRestraint.String(),
-		data.MilitantFaith:          data.MilitantFaith.String(),
-		data.ElegantHubris:          data.ElegantHubris.String(),
-		data.HeroicTragedy:          data.HeroicTragedy.String(),
-		data.FesteringVengeance:     data.FesteringVengeance.String(),
-		data.ExtinguishingGrasp:     data.ExtinguishingGrasp.String(),
-		data.BalefulDominion:        data.BalefulDominion.String(),
-		data.DestructiveAspiration:  data.DestructiveAspiration.String(),
-		data.ReclaimedMalevolence:   data.ReclaimedMalevolence.String(),
+		data.GloriousVanity:        data.GloriousVanity.String(),
+		data.LethalPride:           data.LethalPride.String(),
+		data.BrutalRestraint:       data.BrutalRestraint.String(),
+		data.MilitantFaith:         data.MilitantFaith.String(),
+		data.ElegantHubris:         data.ElegantHubris.String(),
+		data.HeroicTragedy:         data.HeroicTragedy.String(),
+		data.FesteringVengeance:    data.FesteringVengeance.String(),
+		data.ExtinguishingGrasp:    data.ExtinguishingGrasp.String(),
+		data.BalefulDominion:       data.BalefulDominion.String(),
+		data.DestructiveAspiration: data.DestructiveAspiration.String(),
+		data.ReclaimedMalevolence:  data.ReclaimedMalevolence.String(),
 	}, "data", "TimelessJewels")
 
 	e.ExposeOrPanic(data.TimelessJewelConquerors, "data", "TimelessJewelConquerors")
 	e.ExposeOrPanic(data.TimelessJewelSeedRanges, "data", "TimelessJewelSeedRanges")
 	e.ExposeOrPanic(data.GetApplicablePassives(), "data", "PassiveSkills")
-	e.ExposeOrPanic(string(data.SkillTreeJSON), "data", "SkillTree")
 
 	treeToPassive := make(map[uint32]*data.PassiveSkill)
 	for _, skill := range data.PassiveSkills {
@@ -42,16 +41,8 @@ func Expose() *crystalline.Exposer {
 	}
 
 	e.ExposeOrPanic(treeToPassive, "data", "TreeToPassive")
-	e.ExposeOrPanic(string(data.StatTranslationsJSON), "data", "StatTranslationsJSON")
-	e.ExposeOrPanic(string(data.PassiveSkillStatTranslationsJSON), "data", "PassiveSkillStatTranslationsJSON")
-	e.ExposeOrPanic(string(data.PassiveSkillAuraStatTranslationsJSON), "data", "PassiveSkillAuraStatTranslationsJSON")
 
-	// Русские переводы
-	e.ExposeOrPanic(string(data.StatTranslationsRuJSON), "data", "StatTranslationsRuJSON")
-	e.ExposeOrPanic(string(data.PassiveSkillStatTranslationsRuJSON), "data", "PassiveSkillStatTranslationsRuJSON")
-	e.ExposeOrPanic(string(data.PassiveSkillAuraStatTranslationsRuJSON), "data", "PassiveSkillAuraStatTranslationsRuJSON")
-
-	e.ExposeOrPanic(string(data.PossibleStatsJSON), "data", "PossibleStats")
+	// SkillTree / translations / PossibleStats — в public/data/*.json.gz (см. src/lib/uiData.ts)
 
 	return e
 }

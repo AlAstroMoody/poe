@@ -10,6 +10,12 @@ import { getData } from "../services/wasmDataService";
 import { getLanguage, type Lang } from "./i18n";
 import { statValues } from "./values";
 import {
+  loadUiData,
+  getSkillTreeJson,
+  getEnglishTranslationLayers,
+  getPossibleStats,
+} from "./uiData";
+import {
   statNamesRuByStringId,
   formatStatTemplate,
   stripStatDescriptionMarkup,
@@ -61,9 +67,11 @@ export type LoadSkillTreeProgress = {
 export const loadSkillTree = async (
   onProgress?: (progress: LoadSkillTreeProgress) => void,
 ) => {
+  await loadUiData();
+
   const data = getData();
   onProgress?.({ phase: "parse", percent: 5 });
-  skillTree = JSON.parse(data.SkillTree);
+  skillTree = JSON.parse(getSkillTreeJson());
   onProgress?.({ phase: "parse", percent: 15 });
 
   Object.keys(skillTree.groups).forEach((groupId) => {
@@ -149,18 +157,17 @@ export const loadSkillTree = async (
 };
 
 async function loadTranslations() {
-  const data = getData();
   // Нужны всегда: index_handlers (per_minute→per_second и т.д.) совпадают с EN stat_translations;
   // без этого RU шаблоны получают сырой ролл из WASM (например 60 вместо 1% в секунду).
-  loadEnglishTranslations(data);
+  loadEnglishTranslations(getEnglishTranslationLayers());
 }
 
-function loadEnglishTranslations(data?: {
+function loadEnglishTranslations(data: {
   StatTranslationsJSON?: string;
   PassiveSkillStatTranslationsJSON?: string;
   PassiveSkillAuraStatTranslationsJSON?: string;
 }) {
-  const d = data ?? getData();
+  const d = data;
   /** Сначала общие stat_descriptions, затем passive/aura — для одного id на дереве нужен текст из passive_skill_stat_descriptions. */
   const layers: { json?: string; override: boolean }[] = [
     { json: d.StatTranslationsJSON, override: false },
@@ -867,9 +874,7 @@ export function combineResults(
   only: "notables" | "passives" | "all",
   jewel: number,
 ): CombinedResult[] {
-  const allPossibleStats: Record<number, Record<string, number>> = JSON.parse(
-    getData().PossibleStats,
-  );
+  const allPossibleStats = getPossibleStats();
   const mappedStats: Record<number, number[]> = {};
   rawResults.forEach((r) => {
     const node = skillTree.nodes[r.node];
@@ -902,9 +907,7 @@ export function sortCombined(
   order: SortOrder,
   jewel: number,
 ): CombinedResult[] {
-  const allPossibleStats: Record<number, Record<string, number>> = JSON.parse(
-    getData().PossibleStats,
-  );
+  const allPossibleStats = getPossibleStats();
   const arr = [...combined];
   switch (order) {
     case "alphabet":

@@ -1,15 +1,13 @@
 #!/usr/bin/env node
 /**
- * Prepare data artifacts consumed by Go/WASM (data/main.go embeds *.json.gz).
+ * Prepare data artifacts:
+ * - WASM embeds (data/*.json.gz → go:embed): calc tables + applicable_passive_indices
+ * - UI fetch (public/data/*.json.gz): SkillTree, EN translations, possible_stats
  *
- * Current scope:
- * - fetch-skilltree-export output -> update SkillTree.json + SkillTree.json.gz
- * - keep additional timeless-specific files as required inputs
- * - validate all required *.json.gz exist before wasm build
- * - write metadata for reproducibility
+ * SkillTree / translations / PossibleStats больше не в WASM.
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { gzipSync, gunzipSync } from "zlib";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -33,21 +31,24 @@ const SRC_ALTERNATE = join(
   "alternate.json",
 );
 const OUT = join(ROOT, "data");
+const PUBLIC_DATA = join(ROOT, "public", "data");
 
-// Required by data/main.go go:embed declarations
-const REQUIRED_GZ = [
+/** Required by data/main.go go:embed (calc only). */
+const REQUIRED_WASM_GZ = [
   "alternate_passive_additions.json.gz",
   "alternate_passive_skills.json.gz",
   "alternate_tree_versions.json.gz",
   "passive_skills.json.gz",
   "stats.json.gz",
+  "applicable_passive_indices.json.gz",
+];
+
+/** Copied to public/data for frontend fetch (with ?v=). */
+const PUBLIC_UI_GZ = [
   "SkillTree.json.gz",
   "stat_descriptions.json.gz",
   "passive_skill_stat_descriptions.json.gz",
   "passive_skill_aura_stat_descriptions.json.gz",
-  "stat_descriptions_ru.json.gz",
-  "passive_skill_stat_descriptions_ru.json.gz",
-  "passive_skill_aura_stat_descriptions_ru.json.gz",
   "possible_stats.json.gz",
 ];
 
@@ -115,6 +116,44 @@ function mergePassiveSkillStubsFromSkillTree(skillTree, passiveSkillsPath) {
   return added;
 }
 
+/** Индексы _key для GetApplicablePassives без SkillTree в WASM. */
+function writeApplicablePassiveIndices(skillTree, passiveSkillsPath) {
+  const raw = gunzipSync(readFileSync(passiveSkillsPath));
+  const passiveSkills = JSON.parse(raw.toString("utf8"));
+  const nodes = skillTree.nodes || {};
+  const indices = [];
+
+  for (const skill of passiveSkills) {
+    if (!skill?.Name || skill.IsJewelSocket) continue;
+    const gid = skill.PassiveSkillGraphId ?? skill.PassiveSkillGraphID;
+    if (gid == null) continue;
+    const node = nodes[String(gid)];
+    if (!node) continue;
+    if (node.ascendancyName) continue;
+    if (node.isProxy) continue;
+    if (node.isBlighted) continue;
+    if (node.isMastery) continue;
+    const key = skill._key ?? skill.Index;
+    if (typeof key === "number") indices.push(key);
+  }
+
+  writeGzipJson(join(OUT, "applicable_passive_indices.json"), indices);
+  console.log(
+    `Wrote applicable_passive_indices.json.gz (${indices.length} indices)`,
+  );
+  return indices.length;
+}
+
+function syncPublicUiData() {
+  mkdirSync(PUBLIC_DATA, { recursive: true });
+  for (const file of PUBLIC_UI_GZ) {
+    const src = join(OUT, file);
+    mustExist(src, `Need ${file} in data/ before syncing public/data`);
+    copyFileSync(src, join(PUBLIC_DATA, file));
+  }
+  console.log("Synced UI data → public/data:", PUBLIC_UI_GZ.length, "files");
+}
+
 function main() {
   mkdirSync(OUT, { recursive: true });
 
@@ -123,7 +162,6 @@ function main() {
   const skillTreeRaw = readFileSync(SRC_SKILLTREE, "utf8");
   const skillTree = JSON.parse(skillTreeRaw);
 
-  // Merge jewelRadius sprites from alternate.json if missing or for safety
   if (existsSync(SRC_ALTERNATE)) {
     try {
       const altRaw = readFileSync(SRC_ALTERNATE, "utf8");
@@ -155,6 +193,11 @@ function main() {
     );
   }
 
+  const applicableCount = writeApplicablePassiveIndices(
+    skillTree,
+    join(OUT, "passive_skills.json.gz"),
+  );
+
   // Keep raw snapshots for debugging / diffing
   const snapshots = [
     ["data.json", "skilltree-export.data.json"],
@@ -170,13 +213,12 @@ function main() {
     writeFileSync(join(OUT, outName), JSON.stringify(parsed), "utf8");
   }
 
-  // 2) Validate all required embed inputs
+  // 2) Validate WASM embed inputs
   const missing = [];
-  for (const file of REQUIRED_GZ) {
+  for (const file of REQUIRED_WASM_GZ) {
     const p = join(OUT, file);
     if (!existsSync(p)) missing.push(file);
   }
-
   if (missing.length) {
     throw new Error(
       `Missing required data/*.json.gz for wasm build:\n- ${missing.join("\n- ")}\n` +
@@ -184,7 +226,13 @@ function main() {
     );
   }
 
-  // 3) Metadata
+  // 3) Sync UI blobs to public/data (also validate they exist)
+  for (const file of PUBLIC_UI_GZ) {
+    mustExist(join(OUT, file), `UI asset missing: ${file}`);
+  }
+  syncPublicUiData();
+
+  // 4) Metadata
   const metadata = {
     source: {
       skilltreeExport:
@@ -194,10 +242,14 @@ function main() {
     updated: [
       "SkillTree.json",
       "SkillTree.json.gz",
+      "applicable_passive_indices.json.gz",
       "passive_skills.json.gz (stubs if any)",
+      "public/data/* (UI fetch)",
     ],
     passiveSkillStubsMerged: stubs,
-    validatedGzCount: REQUIRED_GZ.length,
+    applicablePassiveIndices: applicableCount,
+    validatedWasmGzCount: REQUIRED_WASM_GZ.length,
+    publicUiGzCount: PUBLIC_UI_GZ.length,
   };
   writeFileSync(
     join(OUT, "prepare-wasm-data.meta.json"),
@@ -206,8 +258,8 @@ function main() {
   );
 
   console.log("Prepared wasm data in", OUT);
-  console.log("Updated: SkillTree.json + SkillTree.json.gz");
-  console.log("Validated required gzip assets:", REQUIRED_GZ.length);
+  console.log("Updated: SkillTree + applicable_passive_indices + public/data");
+  console.log("Validated WASM gzip assets:", REQUIRED_WASM_GZ.length);
 }
 
 main();

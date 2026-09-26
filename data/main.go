@@ -45,41 +45,10 @@ var Stats []*Stat
 
 var idToStat = make(map[uint32]*Stat)
 
-//go:embed SkillTree.json.gz
-var skillTreeGz []byte
-
-var (
-	SkillTreeJSON []byte
-	SkillTreeData SkillTree
-)
-
-//go:embed stat_descriptions.json.gz
-var statTranslationsGz []byte
-var StatTranslationsJSON []byte
-
-//go:embed passive_skill_stat_descriptions.json.gz
-var passiveSkillStatTranslationsGz []byte
-var PassiveSkillStatTranslationsJSON []byte
-
-//go:embed passive_skill_aura_stat_descriptions.json.gz
-var passiveSkillAuraStatTranslationsGz []byte
-var PassiveSkillAuraStatTranslationsJSON []byte
-
-//go:embed stat_descriptions_ru.json.gz
-var statTranslationsRuGz []byte
-var StatTranslationsRuJSON []byte
-
-//go:embed passive_skill_stat_descriptions_ru.json.gz
-var passiveSkillStatTranslationsRuGz []byte
-var PassiveSkillStatTranslationsRuJSON []byte
-
-//go:embed passive_skill_aura_stat_descriptions_ru.json.gz
-var passiveSkillAuraStatTranslationsRuGz []byte
-var PassiveSkillAuraStatTranslationsRuJSON []byte
-
-//go:embed possible_stats.json.gz
-var possibleStatsGz []byte
-var PossibleStatsJSON []byte
+// Индексы applicable passives (без полного SkillTree в WASM). Готовит prepare-wasm-data.mjs.
+//go:embed applicable_passive_indices.json.gz
+var applicablePassiveIndicesGz []byte
+var ApplicablePassiveIndices []uint32
 
 func init() {
 	AlternatePassiveAdditions = unzipJSONTo[[]*AlternatePassiveAddition](alternatePassiveAdditionsGz)
@@ -124,32 +93,11 @@ func init() {
 
 	Stats = unzipJSONTo[[]*Stat](statsGz)
 
-	SkillTreeData = unzipJSONTo[SkillTree](skillTreeGz)
-
-	SkillTreeJSON, _ = json.Marshal(SkillTreeData)
-
-	// Инициализация stat маппинга
 	for _, stat := range Stats {
 		idToStat[stat.Index] = stat
 	}
 
-	StatTranslationsJSON = unzipTo(statTranslationsGz)
-	PassiveSkillStatTranslationsJSON = unzipTo(passiveSkillStatTranslationsGz)
-	PassiveSkillAuraStatTranslationsJSON = unzipTo(passiveSkillAuraStatTranslationsGz)
-
-	// Русские переводы (встраиваем в WASM, если доступны)
-	// Проверяем что файлы не пустые (пустые файлы-заглушки имеют размер 0)
-	if len(statTranslationsRuGz) > 100 { // Минимальный размер валидного gzip файла
-		StatTranslationsRuJSON = unzipTo(statTranslationsRuGz)
-	}
-	if len(passiveSkillStatTranslationsRuGz) > 100 {
-		PassiveSkillStatTranslationsRuJSON = unzipTo(passiveSkillStatTranslationsRuGz)
-	}
-	if len(passiveSkillAuraStatTranslationsRuGz) > 100 {
-		PassiveSkillAuraStatTranslationsRuJSON = unzipTo(passiveSkillAuraStatTranslationsRuGz)
-	}
-
-	PossibleStatsJSON = unzipTo(possibleStatsGz)
+	ApplicablePassiveIndices = unzipJSONTo[[]uint32](applicablePassiveIndicesGz)
 }
 
 func unzipJSONTo[T any](data []byte) T {
