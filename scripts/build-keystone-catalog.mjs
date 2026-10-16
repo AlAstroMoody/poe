@@ -3,7 +3,7 @@
  * Каталог кейстоунов timeless/abyss → src/lib/keystoneCatalog.json
  * Источники: APS + stats + PoB EN display + RU dict.
  */
-import { existsSync, readFileSync, writeFileSync } from "fs";
+import { readFileSync, writeFileSync } from "fs";
 import { gunzipSync } from "zlib";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
@@ -96,7 +96,7 @@ function parseTsStringRecord(path, exportName) {
 function stripMarkup(s) {
   return s
     .replace(/\[DNT\]\s*/g, "")
-    .replace(/\[[^\[\]|]+\|([^\[\]]+)\]/g, "$1");
+    .replace(/\[[^[\]|]+\|([^[\]]+)\]/g, "$1");
 }
 
 function main() {

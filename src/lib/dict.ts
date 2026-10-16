@@ -102,6 +102,17 @@ export const statNamesRuReducedByStringId: Record<string, string> = {
   ...statNamesRuReducedByStringIdGenerated,
 };
 
+/**
+ * id → варианты index_handlers из RePoE stat_translations (EN). Fallback, когда id нет в
+ * EN stat_descriptions из GGPK (public/data): без конверсии (per_minute_to_per_second и т.п.)
+ * сырой ролл из WASM попадает в тултип как есть (38 вместо 0.63).
+ * Генерация: scripts/build-stat-dict.mjs (npm run build:dict).
+ */
+export {
+  statIndexHandlersByStringIdGenerated as statIndexHandlersByStringId,
+  type StatIndexHandlerVariant,
+} from "./statIndexHandlersByStringId.generated";
+
 let enDictLoad: Promise<void> | null = null;
 let enDictReady = false;
 
@@ -125,17 +136,45 @@ export function ensureEnDictMaps(): Promise<void> {
   return enDictLoad;
 }
 
-const NUM_RE = /[+-]?\d+(?:\.\d+)?/g;
+/** Числа со знаком — для извлечения роллов (значение может быть отрицательным). */
+const SIGNED_NUM_RE = /[+-]?\d+(?:\.\d+)?/g;
+/** Числовой хвост без знака: литеральный знак остаётся в скелетоне (как в ключах словаря). */
+const UNSIGNED_NUM_RE = /\d+(?:\.\d+)?/g;
 
-/** Строку типа "30% increased maximum Mana" → skeleton "__% increased maximum Mana". */
+/**
+ * Строку типа "30% increased maximum Mana" → skeleton "__% increased maximum Mana".
+ * Литеральный знак сохраняется ("+{0} to Minimum Rage" → "+__ to Minimum Rage"), чтобы совпадать
+ * с ключами, которые генерирует scripts/build-stat-dict.mjs (templateToSkeleton).
+ */
 export function displayStringToSkeleton(s: string): string {
-  return s.replace(NUM_RE, "__");
+  return s.replace(UNSIGNED_NUM_RE, "__");
 }
 
-/** Из строки "30% increased maximum Mana" извлечь числа [30]. */
+/** Из строки "30% increased maximum Mana" извлечь числа [30] (знак сохраняется: "-10 ..." → [-10]). */
 export function extractRollsFromDisplayString(s: string): number[] {
-  const m = s.match(NUM_RE);
+  const m = s.match(SIGNED_NUM_RE);
   return m ? m.map((x) => parseFloat(x)) : [];
+}
+
+/**
+ * Варианты скелетона для поиска в словаре. Ключи генерируются из EN-шаблонов, поэтому сохраняют
+ * литеральный знак ("-__ to maximum number of Summoned Totems"), но у шаблонов без знака ("__ to Strength")
+ * отображаемое значение может прийти отрицательным ("-10 to Strength"). Пробуем оба варианта:
+ * сначала со знаком (литеральный знак специфичнее), затем без.
+ */
+function skeletonLookupVariants(s: string): string[] {
+  const withSign = s.replace(UNSIGNED_NUM_RE, "__");
+  const withoutSign = s.replace(SIGNED_NUM_RE, "__");
+  return withSign === withoutSign ? [withSign] : [withSign, withoutSign];
+}
+
+/** Поиск stat id по отображаемому тексту (сначала со знаком, затем без). */
+function findStatIdByDisplayText(s: string): string | undefined {
+  for (const skeleton of skeletonLookupVariants(s)) {
+    const id = statStringToId[skeleton];
+    if (id) return id;
+  }
+  return undefined;
 }
 
 /** По отображаемой строке (из node.stats) найти stat id и перевести на русский. Для "reduced"/"less" используем вариант reduced. */
@@ -144,8 +183,7 @@ export function translateStatByDisplayString(
   lang: "ru" | "en",
 ): string {
   if (lang !== "ru") return displayString;
-  const skeleton = displayStringToSkeleton(displayString);
-  const statId = statStringToId[skeleton];
+  const statId = findStatIdByDisplayText(displayString);
   if (!statId) return displayString;
   const isReduced = /reduced|less\s/i.test(displayString);
   const template =
@@ -162,8 +200,7 @@ export function getStatIdFromDisplayLines(lines: string[]): string | null {
   const fullWithNewline = lines.join("\n");
   const fullWithPeriod = lines.join(". ");
   for (const full of [fullWithNewline, fullWithPeriod]) {
-    const skeleton = displayStringToSkeleton(full);
-    const id = statStringToId[skeleton];
+    const id = findStatIdByDisplayText(full);
     if (id) return id;
   }
   return null;
@@ -236,8 +273,7 @@ export function statLabelByStringId(
     }
     // Fallback: WASM может отдавать другой Id — ищем по английскому тексту (skeleton)
     if (enLabel && typeof enLabel === "string") {
-      const skeleton = displayStringToSkeleton(enLabel);
-      const idBySkeleton = statStringToId[skeleton];
+      const idBySkeleton = findStatIdByDisplayText(enLabel);
       if (idBySkeleton) {
         template = statNamesRuByStringId[idBySkeleton];
         if (template) return formatStatTemplate(template, []);
@@ -314,8 +350,7 @@ export function resolveRuStatTemplate(
     statNamesRuReducedByStringId[wasmStatId];
   if (!template && wasmEnText) {
     const isReduced = /reduced|less\s/i.test(wasmEnText);
-    const skeleton = displayStringToSkeleton(wasmEnText);
-    const mappedId = statStringToId[skeleton];
+    const mappedId = findStatIdByDisplayText(wasmEnText);
     if (mappedId) {
       template =
         (isReduced && statNamesRuReducedByStringId[mappedId]) ||
@@ -332,7 +367,7 @@ export function resolveRuStatTemplate(
 export function stripStatDescriptionMarkup(text: string): string {
   return text
     .replace(/\[DNT\]\s*/g, "")
-    .replace(/\[[^\[\]|]+\|([^\[\]]+)\]/g, "$1");
+    .replace(/\[[^[\]|]+\|([^[\]]+)\]/g, "$1");
 }
 
 /** Нормализация имени для поиска в словаре (отображаемое имя → internal id: апостроф убрать, пробелы в _, нижний регистр). */

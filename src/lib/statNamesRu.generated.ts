@@ -8,4 +8,6 @@ export { passiveNamesRuByIdGenerated } from "./passiveNamesById.generated";
 export { passiveSkillGraphIdToNameRuGenerated } from "./passiveSkillGraphIdToNameRu.generated";
 export { statIdByRuNameGenerated } from "./statIdByRuName.generated";
 export { statTemplatesEnByStringIdGenerated } from "./statTemplatesEnByStringId.generated";
+export { statIndexHandlersByStringIdGenerated } from "./statIndexHandlersByStringId.generated";
+export type { StatIndexHandlerVariant } from "./statIndexHandlersByStringId.generated";
 

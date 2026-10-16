@@ -1,0 +1,38 @@
+{
+  "//": "§2.4 «Золотые» кейсы тултипов. Ожидаемые строки зафиксированы по данным игры (RU — официальная локализация GGG). Ловят регрессии: min/max fire damage `#`, devotion-порог (Militant Faith) и т.п. При осознанном изменении данных фикстуру обновляют вместе с PR.",
+  "tooltipCases": [
+    {
+      "name": "min/max fire damage — два слота {0}/{1}",
+      "statId": "attack_minimum_added_fire_damage",
+      "rolls": [12, 24],
+      "expectedRu": "Добавляет от 12 до 24 урона от огня к атакам",
+      "expectedEn": "Adds 12 to 24 Fire Damage to Attacks"
+    },
+    {
+      "name": "mana → extra ES at devotion threshold (Militant Faith)",
+      "statId": "mana_%_to_add_as_energy_shield_at_devotion_threshold",
+      "rolls": [8],
+      "expectedRu": "Дарует 8% от максимума маны в виде дополнительного максимума энергетического щита, пока у вас как минимум 150 набожности",
+      "expectedEn": "Gain 8% of Maximum Mana as Extra Maximum Energy Shield while you have at least 150 Devotion"
+    },
+    {
+      "name": "additional physical damage reduction at devotion threshold",
+      "statId": "physical_damage_reduction_%_at_devotion_threshold",
+      "rolls": [5],
+      "expectedRu": "5% дополнительного уменьшения получаемого физического урона, пока у вас как минимум 150 набожности",
+      "expectedEn": "5% additional Physical Damage Reduction while you have at least 150 Devotion"
+    }
+  ],
+  "displayStringCases": [
+    {
+      "name": "EN display string → RU tooltip через словарь (min/max)",
+      "display": "Adds 12 to 24 Fire Damage to Attacks",
+      "expectedRu": "Добавляет от 12 до 24 урона от огня к атакам"
+    },
+    {
+      "name": "EN display string → RU tooltip (increased maximum Mana)",
+      "display": "30% increased maximum Mana",
+      "expectedRu": "30% увеличение максимума маны"
+    }
+  ]
+}

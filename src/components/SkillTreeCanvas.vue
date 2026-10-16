@@ -946,6 +946,7 @@ function render() {
       !!props.seed &&
       !!props.selectedJewel &&
       (!!props.selectedConqueror || isAbyssJewel);
+
     const cacheKey = `${hoveredNode.value.skill ?? hoveredNode.value.name ?? ""}-${props.circledNode ?? ""}-${props.seed}-${props.selectedJewel}-${props.selectedConqueror}-${props.classStartIndex ?? ""}-${props.ascendancyName ?? ""}-${currentLang}-${hoveredNodeActive}`;
     let nodeName: string;
     let lines: TooltipLine[];

@@ -251,7 +251,10 @@ function parseTable(bytes: Uint8Array): SocketTable {
   const jewelType = bytes[o++];
   o += 1; // abyssSize
   const seedCount = (seedMax - seedMin) / seedInc + 1;
-  const bySeedIndex: Map<number, AbyssNodeMods>[] = new Array(seedCount);
+  const bySeedIndex: Map<number, AbyssNodeMods>[] = Array.from(
+    { length: seedCount },
+    () => new Map<number, AbyssNodeMods>(),
+  );
   for (let si = 0; si < seedCount; si++) {
     const nodeCount = bytes[o++];
     const map = new Map<number, AbyssNodeMods>();
@@ -588,7 +591,7 @@ export async function reverseSearchAbyssEyeLut(
         if (passiveIndex == null) continue;
         if (!results[seed]) results[seed] = {};
         results[seed][passiveIndex] = {
-          ...(results[seed][passiveIndex] ?? {}),
+          ...results[seed][passiveIndex],
           ...rolls,
         };
       }
@@ -648,7 +651,7 @@ export async function reverseSearchZorathLut(
       if (passiveIndex == null) continue;
       if (!results[seed]) results[seed] = {};
       results[seed][passiveIndex] = {
-        ...(results[seed][passiveIndex] ?? {}),
+        ...results[seed][passiveIndex],
         ...rolls,
       };
     }

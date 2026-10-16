@@ -25,6 +25,7 @@ import {
   groupEntriesByStatTemplate,
   resolveRuStatTemplate,
   statTemplatesEnByStringId,
+  statIndexHandlersByStringId,
 } from "./dict";
 import {
   abyssAffectedEpoch,
@@ -364,6 +365,18 @@ export function coerceSignedStatRoll(raw: number): number {
 }
 
 /**
+ * Fallback-описание стата для index_handlers, когда id нет в EN stat_descriptions из GGPK
+ * (public/data грузит не все id RePoE). Без этого сырой ролл из WASM попадает в тултип
+ * без конверсии (напр. base_mana_regeneration_rate_per_minute: 38 вместо 0.63).
+ * Берём только index_handlers/conditions — строку шаблона всё равно дают словари по id.
+ */
+function fallbackTranslationForStat(statId: string): Translation | undefined {
+  const list = statIndexHandlersByStringId[statId];
+  if (!list?.length) return undefined;
+  return { ids: [statId], list: list as Translation["list"] };
+}
+
+/**
  * Число для подстановки в русский шаблон {0} (тот же pipeline, что у formatStats для EN).
  * Если нет записи в inverseTranslations — возвращаем rawRoll.
  */
@@ -372,7 +385,7 @@ export function displayRollForStatTemplate(
   rawRoll: number,
 ): number {
   const roll = coerceSignedStatRoll(rawRoll);
-  const tr = inverseTranslations[statId];
+  const tr = inverseTranslations[statId] ?? fallbackTranslationForStat(statId);
   if (!tr) return roll;
   const applied = applyStatIndexHandlers(tr, roll);
   if (!applied) return roll;
@@ -872,9 +885,9 @@ export function combineResults(
     node: number;
   }[],
   only: "notables" | "passives" | "all",
-  jewel: number,
+  _jewel: number,
 ): CombinedResult[] {
-  const allPossibleStats = getPossibleStats();
+  const _allPossibleStats = getPossibleStats();
   const mappedStats: Record<number, number[]> = {};
   rawResults.forEach((r) => {
     const node = skillTree.nodes[r.node];

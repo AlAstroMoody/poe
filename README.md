@@ -220,6 +220,76 @@ npm run wasm:build
 - `npm run deploy` — деплой на GitHub Pages.
 - `npm run release:check` — сверка meta дерева / stub’ов / числа нод.
 
+---
+
+## Тесты
+
+Тесты построены на **Vitest** и разбиты на две независимые группы конфигов.
+
+### Unit-тесты (`tests/unit/`) — быстрые, без WASM
+
+```bash
+npm test                # один прогон
+npm run test:watch      # watch-режим
+npm run typecheck:tests # проверка типов тестов (tsc, отдельный tsconfig.vitest.json)
+```
+
+Покрывают чистую логику: форматирование/скелетоны статов и локаль (`src/lib/dict.ts`),
+Zorath-пути (`zorathPath`), позиционирование тултипа (`tooltipPlacement`),
+классификацию abyss-самоцветов (`abyssAffectedNodes`), каталог кейстоунов.
+Плюс «золотые» фикстуры тултипов (`tests/fixtures/tooltip-golden.json`) — регрессии RU-локализации.
+
+> `npm test` **намеренно не** поднимает WASM: тяжёлый смоук вынесен в отдельный конфиг.
+
+Конфиги разделены, чтобы `tests/` не мешал сборке: `tests/**` вне `tsconfig.app.json`,
+поэтому `vue-tsc -b` (шаг `npm run build`) тесты не видит.
+
+### Смоук-тесты данных (`tests/smoke/`) — §2 бэклога, WASM + LUT
+
+Прогоняют воспроизводимую выборку кейсов через **настоящий** продовый расчёт
+(`getAffectedNodes` + `calculateTimelessForTreeSkill`, WASM + abyss LUT), пишут
+человекочитаемый Markdown-отчёт и сверяют результат с закоммиченным baseline.
+
+```bash
+npm run test:smoke-data         # прогон + сверка с baseline (fail при расхождении)
+npm run test:smoke-data:update  # перезаписать baseline текущим состоянием (после осознанного изменения данных)
+```
+
+Требует собранных данных в `public/` (см. «Обновление данных»: `prepare:wasm-data`,
+`wasm:build`, `build:abyss-affected`).
+
+**Baseline — выборочный, компактный и версионно-устойчивый.** Он хранит только
+регрессионный сигнал (по кейсу: jewel/conqueror/seed/socket/class + набор нод
+`skill`/`kind`/`source`/флаги/строки эффекта) и **не** хранит отображаемые имена
+(`nameRu`/`nameEn`/`socketName`…): те меняются между версиями игры и локализациями
+и давали ложные diff'ы. Файл минифицирован, число нод на кейс ограничено
+(по умолчанию 12; приоритет — keystone/notable, затем равномерная выборка мелких).
+Текущий размер — ~135 КБ (было ~840 КБ до компактизации).
+Полный отчёт со всеми именами — артефакт (`artifacts/smoke-report.md`), в git не попадает.
+
+Артефакты:
+
+| Путь | Что это | В git |
+| --- | --- | --- |
+| `artifacts/smoke-report.md` | человекочитаемый отчёт (кейсы, ноды, URL для ручной сверки) | игнор |
+| `artifacts/smoke-report.diff.md` | краткий diff при расхождении с baseline | игнор |
+| `tests/smoke/baseline/smoke-baseline.json` | baseline-снапшот (компактный, минифицированный) | **коммитится** |
+
+Переменные окружения:
+
+| Переменная | По умолчанию | Назначение |
+| --- | --- | --- |
+| `SMOKE_CASE_SEED` | `1` | сид выборки кейсов (детерминированность: одинаковый seed → одинаковый набор) |
+| `SMOKE_MAX_CASES` | — | ограничить число кейсов |
+| `SMOKE_MAX_NODES` | `12` | лимит нод на кейс (селективность baseline; меньше → компактнее) |
+| `SMOKE_SITE_BASE` | `/` | база для URL ручной сверки в отчёте |
+| `UPDATE_BASELINE` | — | `1` — перезаписать baseline (эквивалент `test:smoke-data:update`) |
+
+Первый запуск без baseline печатает предупреждение и пропускает сравнение; создайте
+baseline командой `npm run test:smoke-data:update` и закоммитьте его.
+
+---
+
 ## Лицензия
 
 Данный проект распространяется под лицензией MIT — см. [LICENSE](LICENSE).

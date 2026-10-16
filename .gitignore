@@ -31,3 +31,7 @@ dist-ssr
 # Vite
 *.timestamp-*-*.mjs
 .tmp-pob-abyss/
+
+# Тесты: сгенерированные отчёты smoke-теста данных (§2)
+# (baseline при этом коммитится — tests/smoke/baseline/)
+artifacts/
