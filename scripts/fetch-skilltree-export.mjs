@@ -3,11 +3,11 @@
  * Fetch official PoE1 passive tree exports from GGG.
  * Source: https://github.com/grindinggear/skilltree-export
  *
- * By default, uses 3.29.1 (latest known complete tree export).
+ * By default, uses skilltreeExportRef from src/config/game-version.json.
  * You can override ref: node scripts/fetch-skilltree-export.mjs <ref>
  */
 
-import { mkdirSync, writeFileSync } from 'fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -15,12 +15,16 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
 const OUT_DIR = join(ROOT, 'src', 'temp', 'en', 'skilltree-export');
 
+const GAME_VERSION_CONFIG = JSON.parse(
+  readFileSync(join(ROOT, 'src', 'config', 'game-version.json'), 'utf8'),
+);
+
 const FILES = ['data.json', 'alternate.json', 'ruthless.json', 'ruthless-alternate.json'];
 
 function resolveRef() {
   const argRef = process.argv[2]?.trim();
   if (argRef) return argRef;
-  return '3.29.1';
+  return GAME_VERSION_CONFIG.skilltreeExportRef;
 }
 
 async function fetchText(url) {

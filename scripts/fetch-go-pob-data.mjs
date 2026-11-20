@@ -4,11 +4,11 @@
  *
  * Usage:
  *   node scripts/fetch-go-pob-data.mjs                # tries default fallback versions
- *   node scripts/fetch-go-pob-data.mjs 3.29          # try 3.29 then fallback list
- *   node scripts/fetch-go-pob-data.mjs 3.29,3.28     # explicit ordered list
+ *   node scripts/fetch-go-pob-data.mjs 3.30          # try 3.30 then fallback list
+ *   node scripts/fetch-go-pob-data.mjs 3.30,3.29     # explicit ordered list
  */
 
-import { mkdirSync, writeFileSync } from 'fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -16,7 +16,14 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
 const OUT = join(ROOT, 'data');
 
-const fallbackVersions = ['3.29', '3.28', '3.27', '3.26', '3.25', '3.24', '3.23', '3.22'];
+const GAME_VERSION_CONFIG = JSON.parse(
+  readFileSync(join(ROOT, 'src', 'config', 'game-version.json'), 'utf8'),
+);
+
+const fallbackVersions = [...new Set([
+  GAME_VERSION_CONFIG.goPobDataVersion,
+  '3.29', '3.28', '3.27', '3.26', '3.25', '3.24', '3.23', '3.22',
+])];
 const arg = process.argv[2];
 const requested = arg
   ? arg.split(',').map((s) => s.trim()).filter(Boolean)

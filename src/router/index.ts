@@ -1,4 +1,5 @@
 import { createRouter, createWebHashHistory } from "vue-router";
+import { GAME_VERSION } from "@/lib/gameVersion";
 
 const SITE_TITLE = "Вневременные самоцветы и Бездна";
 
@@ -10,7 +11,7 @@ const router = createRouter({
       name: "home",
       component: () => import("@/views/HomeView.vue"),
       meta: {
-        title: `${SITE_TITLE} 3.29 — калькулятор Path of Exile`,
+        title: `${SITE_TITLE} ${GAME_VERSION} — калькулятор Path of Exile`,
       },
     },
     {

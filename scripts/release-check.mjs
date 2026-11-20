@@ -8,6 +8,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
 const DATA = join(ROOT, "data");
 
+const GAME_VERSION_CONFIG = JSON.parse(
+  readFileSync(join(ROOT, "src", "config", "game-version.json"), "utf8"),
+);
+
 /** Calc tables embedded in WASM. */
 const REQUIRED_WASM_GZ = [
   "alternate_passive_additions.json.gz",
@@ -92,8 +96,10 @@ function main() {
       const skilltreeMeta = readJson(skilltreeMetaPath);
       const ref = skilltreeMeta.resolvedRef;
       info.push(`skilltree-export ref: ${ref}`);
-      if (ref !== "3.29.1") {
-        warnings.push(`skilltree-export ref is ${ref}, expected 3.29.1`);
+      if (ref !== GAME_VERSION_CONFIG.skilltreeExportRef) {
+        warnings.push(
+          `skilltree-export ref is ${ref}, expected ${GAME_VERSION_CONFIG.skilltreeExportRef}`,
+        );
       }
     } catch {
       critical.push("Cannot parse skilltree-export.meta.json");
@@ -126,8 +132,10 @@ function main() {
       try {
         const goPobMeta = readJson(goPobMetaPath);
         info.push(`go-pob-data version: ${goPobMeta.resolvedVersion}`);
-        if (goPobMeta.resolvedVersion !== "3.29") {
-          warnings.push(`go-pob-data version is ${goPobMeta.resolvedVersion} (not 3.29)`);
+        if (goPobMeta.resolvedVersion !== GAME_VERSION_CONFIG.goPobDataVersion) {
+          warnings.push(
+            `go-pob-data version is ${goPobMeta.resolvedVersion} (not ${GAME_VERSION_CONFIG.goPobDataVersion})`,
+          );
         }
       } catch {
         warnings.push("Cannot parse go-pob-data.meta.json");

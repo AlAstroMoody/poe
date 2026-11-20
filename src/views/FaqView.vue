@@ -42,7 +42,7 @@ import AppButton from "@/components/AppButton.vue";
             Что за самоцветы Бездны и личи?
           </h2>
           <p>
-            В 3.29 появились камни Бездны — глаза личей
+            Камни Бездны — глаза личей
             <strong class="text-gray-200">Текрод</strong>,
             <strong class="text-gray-200">Уламан</strong>,
             <strong class="text-gray-200">Кургал</strong>,

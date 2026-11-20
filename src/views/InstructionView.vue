@@ -66,7 +66,7 @@ import AppPopover from "@/components/AppPopover.vue";
             зависит кейстоун и пул статов.
           </p>
           <p class="mt-3">
-            В 3.29 добавлены самоцветы
+            Также добавлены самоцветы
             <strong class="text-gray-200">Бездны</strong> — глаза личей
             <AppPopover popup-text="Tecrod / Festering Vengeance">
               <strong class="text-gray-200">Текрод</strong>

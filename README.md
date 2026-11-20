@@ -1,10 +1,10 @@
 # Калькулятор вневременных самоцветов (Path of Exile 1)
 
-Веб-приложение для расчета характеристик вневременных самоцветов (Timeless Jewels) в **Path of Exile 1** (актуально для версии **3.29**). Позволяет просматривать изменения пассивных умений на дереве для любого сида и завоевателя, поддерживает поиск по статам и полную русскую локализацию.
+Веб-приложение для расчета характеристик вневременных самоцветов (Timeless Jewels) в **Path of Exile 1** (актуально для версии **3.30**). Позволяет просматривать изменения пассивных умений на дереве для любого сида и завоевателя, поддерживает поиск по статам и полную русскую локализацию.
 
 ## Основные возможности
 
-- **Поддержка самоцветов:** классические timeless (Vaal…Eternal), Heroic Tragedy и Abyss-глаза 3.29 (Festering Vengeance … Reclaimed Malevolence).
+- **Поддержка самоцветов:** классические timeless (Vaal…Eternal), Heroic Tragedy и Abyss-глаза 3.30 (Festering Vengeance … Reclaimed Malevolence).
 - **Интерактивное дерево:** Визуализация изменений нод с оригинальными тултипами.
 - **Поиск по характеристикам:** Поиск нужного сида по комбинации модов на выбранных нодах.
 - **Локализация:** Полная поддержка русского и английского языков (включая названия нод и описания модов).
@@ -36,7 +36,7 @@
 
 ## Обновление данных из игры
 
-Данные калькулятора берутся из `Content.ggpk` через **PyPoE**, плюс официальный export дерева (`grindinggear/skilltree-export`). Ниже — рабочий путь для **3.29** (с учётом граблей, которые уже ловили).
+Данные калькулятора берутся из `Content.ggpk` через **PyPoE**, плюс официальный export дерева (`grindinggear/skilltree-export`). Ниже — рабочий путь для **3.30** (с учётом граблей, которые уже ловили).
 
 ### 1. Требования
 
@@ -63,6 +63,24 @@ cp .env.poe.example .env.poe
 source scripts/load-poe-env.sh
 ```
 
+### Версия игры в одном месте
+
+Актуальная версия задаётся в **`src/config/game-version.json`**:
+
+```json
+{
+  "gameVersion": "3.30",
+  "skilltreeExportRef": "3.30.0",
+  "goPobDataVersion": "3.30"
+}
+```
+
+- `gameVersion` — подпись на главной, title и SEO-мета в `index.html`;
+- `skilltreeExportRef` — тег по умолчанию для `fetch:skilltree-export`;
+- `goPobDataVersion` — первая версия-кандидат для `fetch:go-pob-data` и ожидание в `release:check`.
+
+При выходе нового патча достаточно поменять значения здесь (и обновить данные).
+
 В PyPoE один раз (или после патча игры):
 
 ```bash
@@ -77,9 +95,9 @@ poetry run pypoe_exporter setup perform
 
 В актуальном клиенте таблицы лежат как `Data/*.datc64` (сжатые), а штатный `pypoe_exporter dat` historically дописывает суффикс и ищет **`*.dat64`**. Симптом: экспорт «успешен», но в логе `Skipping "Data/….dat64" (missing)`, bundle пустой / без нужных блоков.
 
-**Обход:** в локальном PyPoE в `PyPoE/cli/exporter/dat/handler.py` при `FileNotFoundError` для `name + "64"` повторить чтение как `name + "c64"` (fallback на `.datc64`). Без этого патча обновление из GGPK на 3.29+ не заводится.
+**Обход:** в локальном PyPoE в `PyPoE/cli/exporter/dat/handler.py` при `FileNotFoundError` для `name + "64"` повторить чтение как `name + "c64"` (fallback на `.datc64`). Без этого патча обновление из GGPK на 3.30+ не заводится.
 
-Дополнительно: `npm run import:pypoe-bundle` должен импортировать и **`PassiveSkills.dat`** (уже в `TABLE_MAP`). Иначе дерево 3.29 новее таблицы пассивов — появятся stub’ы в `prepare:wasm-data`.
+Дополнительно: `npm run import:pypoe-bundle` должен импортировать и **`PassiveSkills.dat`** (уже в `TABLE_MAP`). Иначе дерево 3.30 новее таблицы пассивов — появятся stub’ы в `prepare:wasm-data`.
 
 ### 4. Экспорт из GGPK
 
@@ -194,8 +212,8 @@ python3 scripts/build-abyss-affected-nodes.py --jewels 7 8 9 10 11
 ### 6. Дерево, словари и WASM
 
 ```bash
-# тег skilltree-export (по умолчанию в скрипте — 3.29.1)
-npm run fetch:skilltree-export -- 3.29.1
+# тег skilltree-export (по умолчанию берётся из src/config/game-version.json)
+npm run fetch:skilltree-export -- 3.30.0
 npm run fetch:passive-tree-ru
 npm run fetch:stat-descriptions-ggpk   # если ещё не гоняли в §5
 npm run build:dict
@@ -210,7 +228,7 @@ npm run wasm:build
 
 ## Дополнительные скрипты
 
-- `npm run fetch:skilltree-export` — JSON дерева с [skilltree-export](https://github.com/grindinggear/skilltree-export) (дефолт **3.29.1**).
+- `npm run fetch:skilltree-export` — JSON дерева с [skilltree-export](https://github.com/grindinggear/skilltree-export) (дефолт — `skilltreeExportRef` из `src/config/game-version.json`).
 - `npm run fetch:passive-tree-ru` — русские названия нод с ru.pathofexile.com.
 - `npm run fetch:stat-descriptions-ggpk` — EN/RU описания статов и кейстоунов из GGPK (`passive_skill_stat_descriptions.txt` и др.).
 - `npm run fetch:stat-translations-ggpk` — альтернатива через RePoE (хрупче).

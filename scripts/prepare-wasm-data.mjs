@@ -65,7 +65,7 @@ function writeGzipJson(outJsonPath, parsed) {
 }
 
 /**
- * Если SkillTree новее passive_skills (например 3.29 vs 3.28), для части graph id нет строки
+ * Если SkillTree новее passive_skills (например 3.30 vs 3.28), для части graph id нет строки
  * в PassiveSkills — TreeToPassive[skill] = nil и альтернатива не считается.
  * Добавляем минимальные записи: флаги из ноды дерева, Stats: [] (тип ноды — по IsNotable / и т.д.).
  */

@@ -9,10 +9,28 @@ const pkg = JSON.parse(
   readFileSync(fileURLToPath(new URL("./package.json", import.meta.url)), "utf-8"),
 ) as { version: string };
 
+const gameVersionConfig = JSON.parse(
+  readFileSync(
+    fileURLToPath(new URL("./src/config/game-version.json", import.meta.url)),
+    "utf-8",
+  ),
+) as { gameVersion: string };
+
+/** Подставляет версию игры в статический index.html (title/meta). */
+function gameVersionHtmlPlugin() {
+  return {
+    name: "game-version-html",
+    transformIndexHtml(html: string) {
+      return html.replaceAll("%GAME_VERSION%", gameVersionConfig.gameVersion);
+    },
+  };
+}
+
 export default defineConfig({
   plugins: [
     vue(),
     tailwindcss(),
+    gameVersionHtmlPlugin(),
     VitePWA({
       // Новый SW сразу активируется. HTML не в precache → shell всегда с сети.
       registerType: "autoUpdate",
